@@ -9,16 +9,32 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { token, savedEmployeeId, restaurant } = useStore();
 
-  // Prefer: URL param → saved employeeId from localStorage
-  const urlEmpId = searchParams.get('emp');
-  const employeeId = urlEmpId || savedEmployeeId;
+  const [employeeId, setEmployeeId] = useState<string | null>(null);
 
-  // Restore theme on mount if restaurant cached
+  // Decode empId from QR Code (Base64)
+  useEffect(() => {
+    const encodedEmpId = searchParams.get('empId');   // ← Updated key
+
+    if (encodedEmpId) {
+      try {
+        const decodedId = atob(encodedEmpId);        // Decode Base64
+        setEmployeeId(decodedId);
+      } catch (error) {
+        console.error("Failed to decode employee ID:", error);
+        setEmployeeId(null);
+      }
+    } else {
+      // Fallback to saved employeeId from localStorage
+      setEmployeeId(savedEmployeeId || null);
+    }
+  }, [searchParams, savedEmployeeId]);
+
+  // Restore theme
   useEffect(() => {
     if (restaurant?.themeColor) applyTheme(restaurant.themeColor);
   }, [restaurant]);
 
-  // Already logged in → redirect
+  // Redirect if already logged in
   useEffect(() => {
     if (token) navigate('/scan', { replace: true });
   }, [token, navigate]);
