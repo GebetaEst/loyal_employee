@@ -6,7 +6,7 @@ import { useStore } from '../store/useStore';
 const SpinnerIcon = () => (
   <svg className="animate-spin-slow" xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24"
     fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-    <path d="M21 12a9 9 0 1 1-6.219-8.56"/>
+    <path d="M21 12a9 9 0 1 1-6.219-8.56" />
   </svg>
 );
 
@@ -21,18 +21,45 @@ export default function ConfirmationModal({ customerId, onClose, onSuccess }) {
     restaurant?.loyaltyProgramId;
   const restaurantName = restaurant?.name || 'Restaurant';
 
+  const parsedCustomer = (() => {
+    if (!customerId) return null;
+    if (typeof customerId === 'object') return customerId;
+    try {
+      return JSON.parse(customerId);
+    } catch {
+      return null;
+    }
+  })();
+
+  const displayCustomerId =
+    parsedCustomer?.customerId || parsedCustomer?._id || customerId;
+  const customerName = parsedCustomer?.name || parsedCustomer?.fullName || 'Unknown';
+
   const handleConfirm = async () => {
     if (!restaurantId) {
       toast.error('Restaurant data missing. Please re-login.');
       return;
     }
+    const token = localStorage.getItem('emp_token');
+    if (!token) {
+      toast.error('Authentication required. Please login again.');
+      return;
+    }
     setLoading(true);
+    console.log('Sending stamp for customer ID:', 
+      displayCustomerId, 'to restaurant:', 
+      restaurantId, 'with loyalty program:', 
+      loyaltyProgram[0]);
     try {
       await api.post('/api/users/stamps', {
-        customerId,
+        customerId: displayCustomerId,
         restaurantId,
         stampsToAdd: 1,
-        loyaltyProgram,
+        loyaltyProgram: loyaltyProgram[0],
+      }, {
+        headers: {
+          Authorization: `Bearer ${token}`,
+        },
       });
       toast.success('✅ Stamp awarded successfully!', {
         duration: 3000,
@@ -68,7 +95,7 @@ export default function ConfirmationModal({ customerId, onClose, onSuccess }) {
               aria-label="Close">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-                <line x1="18" y1="6" x2="6" y2="18"/><line x1="6" y1="6" x2="18" y2="18"/>
+                <line x1="18" y1="6" x2="6" y2="18" /><line x1="6" y1="6" x2="18" y2="18" />
               </svg>
             </button>
           )}
@@ -82,14 +109,15 @@ export default function ConfirmationModal({ customerId, onClose, onSuccess }) {
               style={{ background: 'var(--brand-primary)' }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
                 stroke="var(--brand-primary-text)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z"/>
+                <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
               </svg>
             </div>
           </div>
 
           {/* Details */}
           <div className="flex flex-col gap-2">
-            <InfoRow label="Customer ID" value={customerId} mono />
+            {/* <InfoRow label="Customer ID" value={displayCustomerId} mono /> */}
+            <InfoRow label="Customer Name" value={customerName} />
             <InfoRow label="Restaurant" value={restaurantName} />
             <InfoRow label="Stamps to Add" value="× 1" highlight />
           </div>
