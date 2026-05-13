@@ -9,7 +9,7 @@ export default function LoginPage() {
   const navigate = useNavigate();
   const { token, savedEmployeeId, restaurant } = useStore();
 
-  const [employeeId, setEmployeeId] = useState<string | null>(null);
+  const [employeeId, setEmployeeId] = useState(null);
 
   // Decode empId from QR Code (Base64)
   useEffect(() => {
