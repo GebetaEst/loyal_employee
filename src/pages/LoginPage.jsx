@@ -11,17 +11,19 @@ export default function LoginPage() {
 
   const [employeeId, setEmployeeId] = useState(null);
 
-  // Decode empId from QR Code (Base64)
+  // Decode emp from query string (Base64)
   useEffect(() => {
-    const encodedEmpId = searchParams.get('empId');   // ← Updated key
+    const encodedEmpId = searchParams.get('emp') || searchParams.get('empId');
 
     if (encodedEmpId) {
       try {
         const decodedId = atob(encodedEmpId);        // Decode Base64
+        if (!decodedId) throw new Error("empty");
         setEmployeeId(decodedId);
+        console.log('Decoded employee ID from QR code:', decodedId);
       } catch (error) {
-        console.error("Failed to decode employee ID:", error);
-        setEmployeeId(null);
+        // If decoding fails, use the raw value directly.
+        setEmployeeId(encodedEmpId);
       }
     } else {
       // Fallback to saved employeeId from localStorage
