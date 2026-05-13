@@ -4,6 +4,7 @@ import { useStore } from './store/useStore';
 import { applyTheme } from './lib/theme';
 import LoginPage from './pages/LoginPage';
 import ScanPage from './pages/ScanPage';
+import InstallPrompt from './components/InstallPrompt';
 
 function ProtectedRoute({ children }) {
   const token = useStore(s => s.token);
@@ -31,6 +32,7 @@ export default function App() {
         {/* Default redirect based on auth state */}
         <Route path="*" element={<Navigate to="/scan" replace />} />
       </Routes>
+      <InstallPrompt />
     </BrowserRouter>
   );
 }

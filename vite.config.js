@@ -9,7 +9,7 @@ export default defineConfig({
     tailwindcss(),
     VitePWA({
       registerType: 'autoUpdate',
-      includeAssets: ['favicon.ico', 'icons/*.png'],
+      includeAssets: ['favicon.svg', 'icons/*.png'],
       manifest: {
         name: 'StampGo Employee',
         short_name: 'StampGo',
@@ -38,6 +38,10 @@ export default defineConfig({
             purpose: 'any maskable',
           },
         ],
+      },
+      devOptions: {
+        enabled: true,
+        type: 'module',
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
