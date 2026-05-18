@@ -11,15 +11,20 @@ export default defineConfig({
       registerType: 'autoUpdate',
       includeAssets: ['favicon.svg', 'icons/*.png'],
       manifest: {
+        id: '/',
         name: 'StampGo Employee',
         short_name: 'StampGo',
         description: 'Restaurant employee loyalty stamp tool',
         theme_color: '#8B5E3C',
         background_color: '#1a0f08',
         display: 'standalone',
+        display_override: ['standalone', 'fullscreen'],
         orientation: 'portrait',
         scope: '/',
         start_url: '/',
+        lang: 'en-US',
+        categories: ['business', 'productivity'],
+        prefer_related_applications: false,
         icons: [
           {
             src: 'icons/icon-192.png',

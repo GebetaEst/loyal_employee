@@ -27,15 +27,9 @@ function MenuSkeleton() {
 function MenuItem({ item }) {
   return (
     <div className="glass rounded-2xl overflow-hidden transition-all hover:scale-[1.01] flex gap-3 p-3">
-      {/* Small Image */}
       <div className="flex-shrink-0">
         {item.image ? (
-          <img
-            src={item.image}
-            alt={item.name}
-            className="w-16 h-16 object-cover rounded-xl"
-            loading="lazy"
-          />
+          <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-xl" loading="lazy" />
         ) : (
           <div className="w-16 h-16 flex items-center justify-center text-3xl rounded-xl"
             style={{ background: 'rgba(255,255,255,0.06)' }}>
@@ -43,21 +37,15 @@ function MenuItem({ item }) {
           </div>
         )}
       </div>
-
-      {/* Content */}
       <div className="flex-1 min-w-0">
         <p className="text-sm font-semibold text-white/90 line-clamp-1">{item.name}</p>
-
         {item.price != null && (
           <p className="text-base font-bold mt-0.5" style={{ color: 'var(--brand-primary)' }}>
             ${Number(item.price).toFixed(2)}
           </p>
         )}
-
         {item.description && (
-          <p className="text-xs text-white/50 mt-1 line-clamp-2 leading-snug">
-            {item.description}
-          </p>
+          <p className="text-xs text-white/50 mt-1 line-clamp-2 leading-snug">{item.description}</p>
         )}
       </div>
     </div>
@@ -70,6 +58,8 @@ export default function ScanPage() {
 
   const [scanned, setScanned] = useState(null);
   const [locked, setLocked] = useState(false);
+  const [cameraGranted, setCameraGranted] = useState(false);
+  const [permissionError, setPermissionError] = useState('');
   const lockTimer = useRef(null);
 
   const [menu, setMenu] = useState([]);
@@ -79,14 +69,12 @@ export default function ScanPage() {
   const restaurantId = restaurant?._id || restaurant?.id;
   const restaurantName = restaurant?.name || 'Restaurant';
 
-  // Redirect if not authed
   useEffect(() => {
     if (!localStorage.getItem('emp_token')) {
       navigate('/login', { replace: true });
     }
   }, [navigate]);
 
-  // Fetch menu
   useEffect(() => {
     if (!restaurantId) return;
     setMenuLoading(true);
@@ -102,9 +90,33 @@ export default function ScanPage() {
       .finally(() => setMenuLoading(false));
   }, [restaurantId]);
 
+  // Called only from a direct user tap — required for PWA permission dialog to fire
+  const handleGrantCamera = useCallback(async () => {
+    setPermissionError('');
+
+    if (!navigator?.mediaDevices?.getUserMedia) {
+      setPermissionError('Camera not supported in this browser.');
+      return;
+    }
+
+    try {
+      const stream = await navigator.mediaDevices.getUserMedia({ video: { facingMode: 'environment' } });
+      stream.getTracks().forEach(track => track.stop());
+      setCameraGranted(true);
+    } catch (err) {
+      setCameraGranted(false);
+      if (err?.name === 'NotAllowedError') {
+        setPermissionError('Permission denied. Open your phone Settings → App → Camera and allow access, then tap the button again.');
+      } else if (err?.name === 'NotFoundError') {
+        setPermissionError('No camera found on this device.');
+      } else {
+        setPermissionError('Could not access camera. Please try again.');
+      }
+    }
+  }, []);
+
   const handleScan = useCallback((text) => {
     if (locked || scanned) return;
-    // Extract customerId — handle URL format or raw ID
     let customerId = text;
     try {
       const url = new URL(text);
@@ -155,7 +167,6 @@ export default function ScanPage() {
           </div>
         </div>
         <button
-          id="logout-btn"
           onClick={handleLogout}
           className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-white/50 hover:text-white transition-all"
           style={{ background: 'rgba(255,255,255,0.05)' }}
@@ -170,7 +181,6 @@ export default function ScanPage() {
         </button>
       </header>
 
-      {/* Main content */}
       <main className="flex-1 flex flex-col gap-6 px-5 py-6 overflow-y-auto">
 
         {/* Scanner section */}
@@ -186,12 +196,63 @@ export default function ScanPage() {
                 color: locked ? '#fde047' : '#4ade80',
                 border: locked ? '1px solid rgba(234,179,8,0.25)' : '1px solid rgba(74,222,128,0.25)'
               }}>
-              <div className="w-1.5 h-1.5 rounded-full"
-                style={{ background: locked ? '#fde047' : '#4ade80' }} />
+              <div className="w-1.5 h-1.5 rounded-full" style={{ background: locked ? '#fde047' : '#4ade80' }} />
               {locked ? 'Locked' : 'Ready'}
             </div>
           </div>
-          <QRScanner onScan={handleScan} locked={locked} />
+
+          {cameraGranted ? (
+            /* Camera is live — show scanner + a small "revoke/reset" button in case they need to re-prompt */
+            <div className="flex flex-col gap-3">
+              <QRScanner onScan={handleScan} locked={locked} />
+              <button
+                type="button"
+                onClick={handleGrantCamera}
+                className="self-start flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-white/40 hover:text-white/70 transition-all"
+                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+                Re-enable camera
+              </button>
+            </div>
+          ) : (
+            /* Camera not yet granted — big tap-to-enable block */
+            <div className="flex flex-col gap-4 max-w-sm">
+              <button
+                id="request-camera-btn"
+                type="button"
+                onClick={handleGrantCamera}
+                className="flex items-center justify-center gap-3 rounded-2xl px-5 py-4 text-sm font-semibold text-white transition-all active:scale-95"
+                style={{
+                  background: 'var(--brand-primary)',
+                  color: 'var(--brand-primary-text)',
+                  boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+                }}
+              >
+                <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
+                  stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
+                  <path d="M23 19a2 2 0 0 1-2 2H3a2 2 0 0 1-2-2V8a2 2 0 0 1 2-2h4l2-3h6l2 3h4a2 2 0 0 1 2 2z" />
+                  <circle cx="12" cy="13" r="4" />
+                </svg>
+                Enable Camera to Scan
+              </button>
+
+              {permissionError ? (
+                <div className="rounded-2xl px-4 py-3 text-xs leading-relaxed"
+                  style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#fca5a5' }}>
+                  {permissionError}
+                </div>
+              ) : (
+                <p className="text-xs text-white/30 leading-relaxed px-1">
+                  Tap the button above to allow camera access. You'll see a system prompt — choose <strong className="text-white/50">Allow</strong>.
+                </p>
+              )}
+            </div>
+          )}
         </section>
 
         {/* Divider */}
@@ -251,7 +312,6 @@ export default function ScanPage() {
         </section>
       </main>
 
-      {/* Confirmation Modal */}
       {scanned && (
         <ConfirmationModal
           customerId={scanned}

@@ -61,7 +61,7 @@ export default function ConfirmationModal({ customerId, onClose, onSuccess }) {
           Authorization: `Bearer ${token}`,
         },
       });
-      toast.success('✅ Stamp awarded successfully!', {
+      toast.success(' Stamp awarded successfully!', {
         duration: 3000,
         style: { background: '#1a2e1a', color: '#86efac', border: '1px solid rgba(134,239,172,0.3)' },
       });
