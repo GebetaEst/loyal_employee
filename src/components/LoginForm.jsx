@@ -48,7 +48,7 @@ export default function LoginForm({ employeeId }) {
       // 1. Login
       const loginRes = await api.post('/api/restaurants/employee/login', { employeeId, password });
       const { token, user } = loginRes.data;
-      setAuth({ token, employee: { ...user, employeeId } });
+      setAuth({ token, employee: { ...user, employeeId }, authResponse: loginRes.data });
 
       // 2. Fetch restaurant for this employee
       const restRes = await api.get(`/api/restaurants/employee/${employeeId}`);

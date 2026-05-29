@@ -162,7 +162,7 @@ export default function ScanPage() {
           <div>
             <p className="text-sm font-bold text-white leading-tight">{restaurantName}</p>
             <p className="text-xs text-white/35 leading-tight">
-              {employee?.name || employee?.fullName || 'Employee'}
+              {employee?.employee?.name || employee?.fullName || 'Employee'}
             </p>
           </div>
         </div>

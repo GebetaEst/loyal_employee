@@ -71,7 +71,7 @@ export default function LoginPage() {
               </>
             ) : (
               <>
-                <h1 className="text-2xl font-bold text-white">StampGo</h1>
+                <h1 className="text-2xl font- text-white">Lets Get  <span className="text-orange-500 font-extrabold">Loyal</span></h1>
                 <p className="text-sm text-white/40 mt-1">Employee Portal</p>
               </>
             )}
@@ -79,10 +79,11 @@ export default function LoginPage() {
         </div>
 
         {/* Card */}
-        <div className="glass w-full rounded-3xl p-7 flex flex-col gap-5">
+        <div className="glass w-full rounded-3xl p-7 pt-1 border-2 border- flex flex-col gap-5">
           {/* Employee badge */}
           {employeeId ? (
-            <div className="flex items-center gap-3 rounded-xl px-4 py-3"
+            <div>
+            {/* <div className="flex items-center gap-3 rounded-xl px-4 py-3"
               style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}>
               <div className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0"
                 style={{ background: 'var(--brand-primary)' }}>
@@ -93,11 +94,12 @@ export default function LoginPage() {
                 </svg>
               </div>
               <div className="flex-1 min-w-0">
-                <p className="text-xs text-white/40">Employee ID</p>
-                <p className="text-sm font-semibold font-mono text-white/90 truncate">{employeeId}</p>
+                
+                <p className="text-xl font-semibold font-sans text-white/90 truncate">StampGO</p>
               </div>
               <div className="w-2 h-2 rounded-full" style={{ background: '#4ade80' }} />
-            </div>
+            </div> */}
+                    </div>
           ) : (
             <div className="flex items-center gap-3 rounded-xl px-4 py-3"
               style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)' }}>
