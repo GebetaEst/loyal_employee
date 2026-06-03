@@ -46,16 +46,16 @@ export default function ConfirmationModal({ customerId, onClose, onSuccess }) {
       return;
     }
     setLoading(true);
-    console.log('Sending stamp for customer ID:', 
-      displayCustomerId, 'to restaurant:', 
-      restaurantId, 'with loyalty program:', 
-      loyaltyProgram[0]);
+    // console.log('Sending stamp for customer ID:', 
+    //   displayCustomerId, 'to restaurant:', 
+    //   restaurantId, 'with loyalty program:', 
+    //   loyaltyProgram);
     try {
       await api.post('/api/users/stamps', {
         customerId: displayCustomerId,
         restaurantId,
         stampsToAdd: 1,
-        loyaltyProgram: loyaltyProgram[0],
+        loyaltyProgram,
       }, {
         headers: {
           Authorization: `Bearer ${token}`,
