@@ -54,7 +54,7 @@ function MenuItem({ item }) {
 
 export default function ScanPage() {
   const navigate = useNavigate();
-  const { restaurant, employee, logout } = useStore();
+  const { restaurant, employee, token, menu: storedMenu, logout } = useStore();
 
   const [scanned, setScanned] = useState(null);
   const [locked, setLocked] = useState(false);
@@ -70,13 +70,21 @@ export default function ScanPage() {
   const restaurantName = restaurant?.name || 'Restaurant';
 
   useEffect(() => {
-    if (!localStorage.getItem('emp_token')) {
+    if (!token) {
       navigate('/login', { replace: true });
     }
-  }, [navigate]);
+  }, [navigate, token]);
 
   useEffect(() => {
     if (!restaurantId) return;
+
+    if (storedMenu && storedMenu.length > 0) {
+      const items = storedMenu.flatMap(category => category.items || [category]);
+      setMenu(items);
+      setMenuLoading(false);
+      return;
+    }
+
     setMenuLoading(true);
     api.get(`/api/menus/restaurant/${restaurantId}`)
       .then(res => {
@@ -88,7 +96,7 @@ export default function ScanPage() {
       })
       .catch(() => setMenu([]))
       .finally(() => setMenuLoading(false));
-  }, [restaurantId]);
+  }, [restaurantId, storedMenu]);
 
   // Called only from a direct user tap — required for PWA permission dialog to fire
   const handleGrantCamera = useCallback(async () => {
@@ -117,6 +125,18 @@ export default function ScanPage() {
 
   const handleScan = useCallback((text) => {
     if (locked || scanned) return;
+
+    // Check if the QR code payload is a JSON string
+    try {
+      const parsed = JSON.parse(text);
+      if (parsed && (parsed.customerId || parsed.id || parsed._id)) {
+        setScanned(parsed);
+        return;
+      }
+    } catch (e) {
+      // Not JSON, continue with URL/text parsing
+    }
+
     let customerId = text;
     try {
       const url = new URL(text);

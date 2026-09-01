@@ -1,91 +1,124 @@
 import { create } from 'zustand';
 import { applyTheme, resetTheme } from '../lib/theme';
 
-const STORAGE_TOKEN_KEY = 'emp_token';
-const STORAGE_EMPLOYEE_KEY = 'emp_employee_id';
-const STORAGE_EMPLOYEE_DATA_KEY = 'emp_employee_data';
-const STORAGE_AUTH_RESPONSE_KEY = 'emp';
-const STORAGE_RESTAURANT_KEY = 'emp_restaurant';
+const STORAGE_SESSION_KEY = 'emp_session';
+const STORAGE_SAVED_ID_KEY = 'emp_saved_id';
+
+const getStoredSession = () => {
+  try {
+    const raw = localStorage.getItem(STORAGE_SESSION_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+};
+
+const saveSession = (session) => {
+  try {
+    if (session) {
+      // Exclude menu from the stored localStorage JSON to keep storage clean
+      const { menu, ...sessionToStore } = session;
+      localStorage.setItem(STORAGE_SESSION_KEY, JSON.stringify(sessionToStore));
+    } else {
+      localStorage.removeItem(STORAGE_SESSION_KEY);
+    }
+  } catch (err) {
+    console.error('Failed to save session to localStorage:', err);
+  }
+};
+
+const storedSession = getStoredSession();
 
 export const useStore = create((set, get) => ({
   // ─── Auth ───
-  token: localStorage.getItem(STORAGE_TOKEN_KEY) || null,
-  employee: (() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_AUTH_RESPONSE_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  })(),
-  authResponse: (() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_AUTH_RESPONSE_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  })(),
+  token: storedSession?.token || null,
+  employee: storedSession?.employee || null,
+  
   // Saved employeeId persists even after token expiry
-  savedEmployeeId: localStorage.getItem(STORAGE_EMPLOYEE_KEY) || null,
+  savedEmployeeId: localStorage.getItem(STORAGE_SAVED_ID_KEY) || null,
 
   // ─── Restaurant ───
-  restaurant: (() => {
-    try {
-      const raw = localStorage.getItem(STORAGE_RESTAURANT_KEY);
-      return raw ? JSON.parse(raw) : null;
-    } catch {
-      return null;
-    }
-  })(),
+  restaurant: storedSession?.restaurant || null,
+  menu: [], // Menu is only stored in memory state, not loaded from local storage
 
   // ─── Computed ───
   isAuthenticated: () => !!get().token,
 
   // ─── Actions ───
-  setAuth: ({ token, employee, authResponse = null }) => {
-    localStorage.setItem(STORAGE_TOKEN_KEY, token);
-    localStorage.setItem(STORAGE_EMPLOYEE_KEY, employee?.employeeId || employee?._id || '');
-    try {
-      localStorage.setItem(STORAGE_EMPLOYEE_DATA_KEY, JSON.stringify(employee));
-    } catch {}
-    if (authResponse !== null) {
-      try {
-        localStorage.setItem(STORAGE_AUTH_RESPONSE_KEY, JSON.stringify(authResponse));
-      } catch {}
+  setAuth: ({ token, employee }) => {
+    const empId = employee?.id || employee?.employeeId || employee?._id || '';
+    if (empId) {
+      localStorage.setItem(STORAGE_SAVED_ID_KEY, empId);
     }
-    set({ token, employee, authResponse, savedEmployeeId: employee?.employeeId || employee?._id });
+    
+    // Explicitly define session fields to prevent data duplication (excluding menu)
+    const stored = getStoredSession();
+    const nextSession = {
+      token,
+      employee,
+      restaurant: stored?.restaurant || null
+    };
+    saveSession(nextSession);
+    
+    set({
+      token,
+      employee,
+      savedEmployeeId: empId || get().savedEmployeeId
+    });
   },
 
-  setRestaurant: (restaurant) => {
-    try {
-      localStorage.setItem(STORAGE_RESTAURANT_KEY, JSON.stringify(restaurant));
-    } catch {}
+  setRestaurant: (restaurant, menu = []) => {
     if (restaurant?.themeColor) {
       applyTheme(restaurant.themeColor);
     }
-    set({ restaurant });
+    
+    const stored = getStoredSession();
+    const nextSession = {
+      token: stored?.token || null,
+      employee: stored?.employee || null,
+      restaurant,
+      menu
+    };
+    saveSession(nextSession);
+    
+    set({ restaurant, menu });
   },
 
-  /** Called on 401: keep savedEmployeeId, wipe token + employee */
+  /** Called on 401: keep savedEmployeeId, wipe session state */
   clearAuthKeepEmployee: (employeeId) => {
-    localStorage.removeItem(STORAGE_TOKEN_KEY);
-    localStorage.removeItem(STORAGE_EMPLOYEE_DATA_KEY);
-    localStorage.removeItem(STORAGE_AUTH_RESPONSE_KEY);
     const id = employeeId || get().savedEmployeeId;
-    if (id) localStorage.setItem(STORAGE_EMPLOYEE_KEY, id);
-    set({ token: null, employee: null, authResponse: null });
+    if (id) {
+      localStorage.setItem(STORAGE_SAVED_ID_KEY, id);
+    }
+    
+    saveSession(null);
+    
+    set({
+      token: null,
+      employee: null,
+      restaurant: null,
+      menu: [],
+      savedEmployeeId: id
+    });
     resetTheme();
   },
 
   /** Full logout */
   logout: () => {
-    localStorage.removeItem(STORAGE_TOKEN_KEY);
-    localStorage.removeItem(STORAGE_EMPLOYEE_DATA_KEY);
-    localStorage.removeItem(STORAGE_AUTH_RESPONSE_KEY);
-    localStorage.removeItem(STORAGE_RESTAURANT_KEY);
-    // Keep savedEmployeeId so next login is password-only
-    set({ token: null, employee: null, authResponse: null, restaurant: null });
+    saveSession(null);
+    // Purge legacy storage keys to clean up user's browser
+    localStorage.removeItem('emp');
+    localStorage.removeItem('emp_employee_data');
+    localStorage.removeItem('emp_employee_id');
+    localStorage.removeItem('emp_restaurant');
+    localStorage.removeItem('emp_token');
+    
+    set({
+      token: null,
+      employee: null,
+      restaurant: null,
+      menu: []
+    });
     resetTheme();
   },
 }));

@@ -12,7 +12,7 @@ const SpinnerIcon = () => (
 
 export default function ConfirmationModal({ customerId, onClose, onSuccess }) {
   const [loading, setLoading] = useState(false);
-  const { restaurant } = useStore();
+  const { restaurant, token } = useStore();
 
   const restaurantId = restaurant?._id || restaurant?.id;
   const loyaltyProgram =
@@ -40,7 +40,6 @@ export default function ConfirmationModal({ customerId, onClose, onSuccess }) {
       toast.error('Restaurant data missing. Please re-login.');
       return;
     }
-    const token = localStorage.getItem('emp_token');
     if (!token) {
       toast.error('Authentication required. Please login again.');
       return;

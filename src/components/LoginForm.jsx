@@ -47,15 +47,33 @@ export default function LoginForm({ employeeId }) {
     try {
       // 1. Login
       const loginRes = await api.post('/api/restaurants/employee/login', { employeeId, password });
-      const { token, user } = loginRes.data;
-      setAuth({ token, employee: { ...user, employeeId }, authResponse: loginRes.data });
+      const { token, employee } = loginRes.data;
+      setAuth({ token, employee });
 
       // 2. Fetch restaurant for this employee
-      const restRes = await api.get(`/api/restaurants/employee/${employeeId}`);
-      const restaurant = restRes.data?.restaurant || restRes.data;
-      setRestaurant(restaurant);
+      const restRes = await api.get('/api/restaurants/employee/me');
+      const restaurant = restRes.data;
+      // 3. Fetch menu details using the restaurant ID
+      let menu = [];
+      try {
+        const menuRes = await api.get(`/api/menus/restaurant/${restaurant._id}`);
+        menu = menuRes.data || [];
+      } catch (err) {
+        console.error('Failed to pre-fetch menu details:', err);
+      }
 
-      navigate('/scan', { replace: true });
+      setRestaurant(restaurant, menu);
+
+      // Redirect based on role
+      if (employee.role === 'chef') {
+        navigate('/kitchen', { replace: true });
+      } else if (employee.role === 'waiter') {
+        navigate('/orders', { replace: true });
+      } else if (employee.role === 'cashier') {
+        navigate('/payments', { replace: true });
+      } else {
+        navigate('/profile', { replace: true });
+      }
     } catch (err) {
       const msg = err.response?.data?.message || err.response?.data?.error || 'Login failed. Check your password.';
       setError(msg);
