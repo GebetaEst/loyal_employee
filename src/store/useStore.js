@@ -17,7 +17,8 @@ const saveSession = (session) => {
   try {
     if (session) {
       // Exclude menu from the stored localStorage JSON to keep storage clean
-      const { menu, ...sessionToStore } = session;
+      const sessionToStore = { ...session };
+      delete sessionToStore.menu;
       localStorage.setItem(STORAGE_SESSION_KEY, JSON.stringify(sessionToStore));
     } else {
       localStorage.removeItem(STORAGE_SESSION_KEY);
@@ -28,6 +29,9 @@ const saveSession = (session) => {
 };
 
 const storedSession = getStoredSession();
+if (storedSession?.restaurant?.themeColor) {
+  applyTheme(storedSession.restaurant.themeColor);
+}
 
 export const useStore = create((set, get) => ({
   // ─── Auth ───
@@ -41,10 +45,29 @@ export const useStore = create((set, get) => ({
   restaurant: storedSession?.restaurant || null,
   menu: [], // Menu is only stored in memory state, not loaded from local storage
 
+  // ─── Realtime ───
+  socketConnected: false,
+  ordersRevision: 0,
+  lastRealtimeAt: null,
+
   // ─── Computed ───
   isAuthenticated: () => !!get().token,
 
   // ─── Actions ───
+  setSocketConnected: (socketConnected) => set({ socketConnected }),
+
+  bumpOrdersRevision: () =>
+    set((state) => ({
+      ordersRevision: state.ordersRevision + 1,
+      lastRealtimeAt: Date.now(),
+    })),
+
+  resetRealtime: () =>
+    set({
+      socketConnected: false,
+      ordersRevision: 0,
+      lastRealtimeAt: null,
+    }),
   setAuth: ({ token, employee }) => {
     const empId = employee?.id || employee?.employeeId || employee?._id || '';
     if (empId) {
@@ -98,7 +121,10 @@ export const useStore = create((set, get) => ({
       employee: null,
       restaurant: null,
       menu: [],
-      savedEmployeeId: id
+      savedEmployeeId: id,
+      socketConnected: false,
+      ordersRevision: 0,
+      lastRealtimeAt: null,
     });
     resetTheme();
   },
@@ -117,7 +143,10 @@ export const useStore = create((set, get) => ({
       token: null,
       employee: null,
       restaurant: null,
-      menu: []
+      menu: [],
+      socketConnected: false,
+      ordersRevision: 0,
+      lastRealtimeAt: null,
     });
     resetTheme();
   },

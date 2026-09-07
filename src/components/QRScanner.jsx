@@ -26,7 +26,7 @@ export default function QRScanner({ onScan, locked }) {
         controlsRef.current = await readerRef.current.decodeFromVideoDevice(
           deviceId,
           videoRef.current,
-          (result, err) => {
+          (result) => {
             if (!mounted) return;
             if (result) {
               const now = Date.now();
@@ -52,14 +52,16 @@ export default function QRScanner({ onScan, locked }) {
 
     return () => {
       mounted = false;
-      try { controlsRef.current?.stop(); } catch {}
+      try { controlsRef.current?.stop(); } catch {
+        // ignore stop errors
+      }
     };
   }, [onScan]);
 
   return (
     <div className="relative w-full flex flex-col items-center gap-4">
       {/* Video */}
-      <div className="relative w-full max-w-sm aspect-square rounded-2xl overflow-hidden scanner-border">
+      <div className="relative w-full max-w-sm aspect-square rounded-2xl overflow-hidden scanner-border bg-slate-900 shadow-md">
         <video
           ref={videoRef}
           className="w-full h-full object-cover"
@@ -91,9 +93,9 @@ export default function QRScanner({ onScan, locked }) {
         {/* Locked overlay */}
         {locked && (
           <div className="absolute inset-0 flex items-center justify-center rounded-2xl animate-fade-in"
-            style={{ background: 'rgba(13,9,5,0.75)' }}>
+            style={{ background: 'rgba(15,23,42,0.75)' }}>
             <div className="flex flex-col items-center gap-3">
-              <div className="w-14 h-14 rounded-full flex items-center justify-center"
+              <div className="w-14 h-14 rounded-full flex items-center justify-center shadow-lg"
                 style={{ background: 'var(--brand-primary)' }}>
                 <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none"
                   stroke="var(--brand-primary-text)" strokeWidth="2.5" strokeLinecap="round">
@@ -101,7 +103,7 @@ export default function QRScanner({ onScan, locked }) {
                   <polyline points="22 4 12 14.01 9 11.01"/>
                 </svg>
               </div>
-              <span className="text-sm font-medium text-white/70">Stamp sent!</span>
+              <span className="text-sm font-bold text-white">Stamp sent!</span>
             </div>
           </div>
         )}
@@ -109,15 +111,14 @@ export default function QRScanner({ onScan, locked }) {
 
       {/* Error */}
       {error && (
-        <div className="w-full max-w-sm rounded-xl px-4 py-3 text-sm text-center"
-          style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5' }}>
+        <div className="w-full max-w-sm rounded-xl px-4 py-3 text-xs font-semibold text-center bg-red-50 border border-red-200 text-red-700">
           {error}
         </div>
       )}
 
       {/* Status */}
       {!error && (
-        <p className="text-xs text-white/40 text-center">
+        <p className="text-xs text-slate-500 font-medium text-center">
           {locked ? 'Scanner locked · ready in a moment…' : scanning ? 'Point at customer QR code' : 'Starting camera…'}
         </p>
       )}

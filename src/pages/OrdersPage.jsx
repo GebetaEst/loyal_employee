@@ -1,24 +1,35 @@
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useRef, useState } from 'react';
 import api from '../api/axios';
 import EmployeeLayout from '../components/EmployeeLayout';
-import OrderCard, { getAvailableAction } from '../components/OrderCard';
+import OrderCard from '../components/OrderCard';
 import { useStore } from '../store/useStore';
 
 export default function OrdersPage() {
-  const { employee } = useStore();
+  const ordersRevision = useStore((state) => state.ordersRevision);
   const [activeOrders, setActiveOrders] = useState([]);
   const [historyOrders, setHistoryOrders] = useState([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
 
+  const inFlightRef = useRef(false);
+  const fetchSeqRef = useRef(0);
+  const initialMountRef = useRef(true);
+
   const fetchOrders = useCallback(async (showSkeleton = false) => {
     if (showSkeleton) setLoading(true);
     setError('');
+
+    const currentSeq = ++fetchSeqRef.current;
+    inFlightRef.current = true;
+
     try {
       const [activeRes, historyRes] = await Promise.all([
         api.get('/api/employee/orders', { params: { status: 'active' } }),
         api.get('/api/employee/orders', { params: { status: 'history' } })
       ]);
+
+      // If a newer request has already been issued, ignore this stale response
+      if (currentSeq !== fetchSeqRef.current) return;
 
       if (activeRes.data?.success) {
         setActiveOrders(activeRes.data.data?.orders || []);
@@ -28,64 +39,94 @@ export default function OrdersPage() {
         setHistoryOrders((historyRes.data.data?.orders || []).slice(0, 5));
       }
     } catch (err) {
+      if (currentSeq !== fetchSeqRef.current) return;
       console.error('🔥 Error fetching waiter orders:', err);
       setError(err.response?.data?.message || err.response?.data?.error || 'Failed to sync order queue.');
     } finally {
-      setLoading(false);
+      if (currentSeq === fetchSeqRef.current) {
+        inFlightRef.current = false;
+        setLoading(false);
+      }
     }
   }, []);
 
-  // Poll every 5 seconds
+  // Initial fetch on mount
   useEffect(() => {
     fetchOrders(true);
+  }, [fetchOrders]);
 
+  // React to realtime ordersRevision changes
+  useEffect(() => {
+    if (initialMountRef.current) {
+      initialMountRef.current = false;
+      return;
+    }
+    if (navigator.onLine) {
+      console.log(`🔄 [OrdersPage] Realtime revision change detected (ordersRevision: ${ordersRevision}) -> Refetching queue via REST`);
+      fetchOrders(false);
+    }
+  }, [ordersRevision, fetchOrders]);
+
+  // Fallback 30-second polling for reconciliation
+  useEffect(() => {
     const interval = setInterval(() => {
-      if (navigator.onLine) {
+      if (navigator.onLine && !inFlightRef.current) {
         fetchOrders(false);
       }
-    }, 5000);
+    }, 30000);
 
     return () => clearInterval(interval);
   }, [fetchOrders]);
 
-  // Window Focus Refetch
+  // Focus, Visibility Resume, and Online recovery
   useEffect(() => {
-    const handleFocus = () => {
-      if (navigator.onLine) {
+    const handleResume = () => {
+      if (navigator.onLine && document.visibilityState !== 'hidden') {
         fetchOrders(false);
       }
     };
-    window.addEventListener('focus', handleFocus);
-    return () => window.removeEventListener('focus', handleFocus);
+
+    const handleOnline = () => {
+      fetchOrders(false);
+    };
+
+    window.addEventListener('focus', handleResume);
+    document.addEventListener('visibilitychange', handleResume);
+    window.addEventListener('online', handleOnline);
+
+    return () => {
+      window.removeEventListener('focus', handleResume);
+      document.removeEventListener('visibilitychange', handleResume);
+      window.removeEventListener('online', handleOnline);
+    };
   }, [fetchOrders]);
 
-  // Categorize active orders dynamically based on waiter actionable capability
-  const readyOrders = [];
-  const preparingOrders = [];
+  // Categorize canonical active orders: placed vs served
+  const newOrders = [];
+  const servedOrders = [];
 
   activeOrders.forEach((order) => {
-    const action = getAvailableAction(order, employee);
-    // If the waiter can perform an action, or if it is already in ready/serving step
-    if (action?.canAdvance || order.currentStepKey === 'ready' || order.currentStepKey === 'serving') {
-      readyOrders.push(order);
+    if (order.currentStepKey === 'served') {
+      servedOrders.push(order);
     } else {
-      preparingOrders.push(order);
+      // 'placed' or default active state
+      newOrders.push(order);
     }
   });
 
   return (
     <EmployeeLayout>
-      <div className="flex flex-col gap-6">
+      <div className="flex flex-col gap-6 animate-fade-in max-w-lg mx-auto">
         {/* Title */}
         <div>
-          <h1 className="text-2xl font-black text-white">My Assigned Orders</h1>
-          <p className="text-xs text-white/40">Assigned waiter tasks from your tables</p>
+          <h1 className="text-2xl font-black text-slate-900">My Assigned Orders</h1>
+          <p className="text-xs text-slate-500 mt-0.5">Assigned waiter tasks from your tables</p>
         </div>
 
         {/* Error Alert */}
         {error && (
-          <div className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm bg-red-500/10 border border-red-500/30 text-red-200">
-            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+          <div className="flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-semibold bg-red-50 border border-red-200 text-red-700">
+            <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5 shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
               <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
             </svg>
             <span>{error}</span>
@@ -95,7 +136,7 @@ export default function OrdersPage() {
         {loading ? (
           <div className="flex flex-col gap-4">
             {[1, 2].map((i) => (
-              <div key={i} className="glass rounded-3xl p-5 border border-white/5 flex flex-col gap-4">
+              <div key={i} className="glass rounded-3xl p-5 border border-slate-200 bg-white flex flex-col gap-4 shadow-sm">
                 <div className="skeleton h-6 w-24" />
                 <div className="skeleton h-4 w-1/3" />
                 <div className="skeleton h-10 w-full rounded-2xl" />
@@ -104,43 +145,43 @@ export default function OrdersPage() {
           </div>
         ) : (
           <div className="flex flex-col gap-6">
-            {/* Section 1: Ready Orders (Needs Action) */}
+            {/* Section 1: New Orders (Placed) */}
             <div>
-              <h2 className="text-sm font-black text-white/50 uppercase tracking-widest mb-3 flex items-center gap-2">
-                <span>Ready to Serve</span>
-                <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] bg-green-500/10 text-green-400 border border-green-500/20">
-                  {readyOrders.length}
+              <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <span>New Orders</span>
+                <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] bg-amber-50 text-amber-700 border border-amber-200 font-bold">
+                  {newOrders.length}
                 </span>
               </h2>
-              {readyOrders.length === 0 ? (
-                <div className="rounded-2xl border border-white/5 p-6 text-center text-xs text-white/30 bg-white/2">
-                  No orders ready to serve right now.
+              {newOrders.length === 0 ? (
+                <div className="rounded-2xl border border-slate-200 p-6 text-center text-xs text-slate-400 bg-white shadow-sm">
+                  No new orders waiting right now.
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">
-                  {readyOrders.map((order) => (
-                    <OrderCard key={order.id} order={order} onRefresh={() => fetchOrders(false)} />
+                  {newOrders.map((order) => (
+                    <OrderCard key={order.id || order._id} order={order} onRefresh={() => fetchOrders(false)} />
                   ))}
                 </div>
               )}
             </div>
 
-            {/* Section 2: Preparing Orders (Read-Only) */}
+            {/* Section 2: Served Orders */}
             <div>
-              <h2 className="text-sm font-black text-white/50 uppercase tracking-widest mb-3 flex items-center gap-2">
-                <span>Kitchen Preparing</span>
-                <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] bg-orange-500/10 text-orange-400 border border-orange-500/20">
-                  {preparingOrders.length}
+              <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3 flex items-center gap-2">
+                <span>Served</span>
+                <span className="w-5 h-5 rounded-full flex items-center justify-center text-[10px] bg-blue-50 text-blue-700 border border-blue-200 font-bold">
+                  {servedOrders.length}
                 </span>
               </h2>
-              {preparingOrders.length === 0 ? (
-                <div className="rounded-2xl border border-white/5 p-6 text-center text-xs text-white/30 bg-white/2">
-                  No orders currently in the kitchen.
+              {servedOrders.length === 0 ? (
+                <div className="rounded-2xl border border-slate-200 p-6 text-center text-xs text-slate-400 bg-white shadow-sm">
+                  No served orders awaiting completion.
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">
-                  {preparingOrders.map((order) => (
-                    <OrderCard key={order.id} order={order} onRefresh={() => fetchOrders(false)} />
+                  {servedOrders.map((order) => (
+                    <OrderCard key={order.id || order._id} order={order} onRefresh={() => fetchOrders(false)} />
                   ))}
                 </div>
               )}
@@ -149,12 +190,12 @@ export default function OrdersPage() {
             {/* Section 3: Recently Completed (Read-Only) */}
             {historyOrders.length > 0 && (
               <div>
-                <h2 className="text-sm font-black text-white/50 uppercase tracking-widest mb-3">
+                <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest mb-3">
                   Recently Completed
                 </h2>
-                <div className="flex flex-col gap-4 opacity-60 hover:opacity-100 transition-opacity">
+                <div className="flex flex-col gap-4 opacity-75 hover:opacity-100 transition-opacity">
                   {historyOrders.map((order) => (
-                    <OrderCard key={order.id} order={order} onRefresh={() => fetchOrders(false)} />
+                    <OrderCard key={order.id || order._id} order={order} onRefresh={() => fetchOrders(false)} />
                   ))}
                 </div>
               </div>

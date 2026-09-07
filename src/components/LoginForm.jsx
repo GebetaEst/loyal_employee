@@ -66,7 +66,7 @@ export default function LoginForm({ employeeId }) {
 
       // Redirect based on role
       if (employee.role === 'chef') {
-        navigate('/kitchen', { replace: true });
+        navigate('/profile', { replace: true });
       } else if (employee.role === 'waiter') {
         navigate('/orders', { replace: true });
       } else if (employee.role === 'cashier') {
@@ -86,7 +86,7 @@ export default function LoginForm({ employeeId }) {
     <form onSubmit={handleSubmit} className="flex flex-col gap-4 w-full animate-fade-in-up">
       {/* Password Field */}
       <div className="relative">
-        <label className="block text-xs font-medium text-white/50 mb-2 uppercase tracking-widest">
+        <label className="block text-xs font-bold text-slate-600 mb-1.5 uppercase tracking-wider">
           Password
         </label>
         <div className="relative">
@@ -103,7 +103,7 @@ export default function LoginForm({ employeeId }) {
           <button
             type="button"
             onClick={() => setShowPass(!showPass)}
-            className="absolute right-4 top-1/2 -translate-y-1/2 text-white/40 hover:text-white/80 transition-colors"
+            className="absolute right-4 top-1/2 -translate-y-1/2 text-slate-400 hover:text-slate-700 transition-colors"
             tabIndex={-1}
             aria-label={showPass ? 'Hide password' : 'Show password'}
           >
@@ -114,10 +114,9 @@ export default function LoginForm({ employeeId }) {
 
       {/* Error */}
       {error && (
-        <div className="flex items-center gap-2 rounded-xl px-4 py-3 text-sm"
-          style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.3)', color: '#fca5a5' }}>
+        <div className="flex items-center gap-2 rounded-xl px-4 py-3 text-xs font-semibold bg-red-50 border border-red-200 text-red-700">
           <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+            stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="shrink-0">
             <circle cx="12" cy="12" r="10"/><line x1="12" y1="8" x2="12" y2="12"/><line x1="12" y1="16" x2="12.01" y2="16"/>
           </svg>
           {error}
@@ -129,8 +128,7 @@ export default function LoginForm({ employeeId }) {
         id="login-btn"
         type="submit"
         disabled={loading || !password}
-        className="btn-primary mt-2"
-        style={{ marginTop: '8px' }}
+        className="btn-primary mt-1"
       >
         {loading ? (
           <>

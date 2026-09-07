@@ -1,9 +1,10 @@
 import { useEffect } from 'react';
 import { BrowserRouter, Routes, Route, Navigate } from 'react-router-dom';
+import { Toaster } from 'react-hot-toast';
 import { useStore } from './store/useStore';
 import { applyTheme } from './lib/theme';
+import EmployeeRealtimeManager from './realtime/EmployeeRealtimeManager';
 import LoginPage from './pages/LoginPage';
-import KitchenPage from './pages/KitchenPage';
 import OrdersPage from './pages/OrdersPage';
 import MyTablesPage from './pages/MyTablesPage';
 import PaymentsPage from './pages/PaymentsPage';
@@ -22,7 +23,7 @@ function RoleGuard({ children, allowedRoles }) {
 
   if (!employee) {
     return (
-      <div className="min-h-screen bg-[#0d0905] text-[#f5f0eb] flex items-center justify-center font-bold text-sm">
+      <div className="min-h-screen bg-[#f8fafc] text-[#0f172a] flex items-center justify-center font-bold text-sm">
         Loading employee profile...
       </div>
     );
@@ -30,7 +31,7 @@ function RoleGuard({ children, allowedRoles }) {
 
   if (!allowedRoles.includes(employee.role)) {
     // Redirect to default route based on employee's actual role
-    if (employee.role === 'chef') return <Navigate to="/kitchen" replace />;
+    if (employee.role === 'chef') return <Navigate to="/profile" replace />;
     if (employee.role === 'waiter') return <Navigate to="/orders" replace />;
     if (employee.role === 'cashier') return <Navigate to="/payments" replace />;
     return <Navigate to="/profile" replace />;
@@ -50,13 +51,14 @@ function RoleRedirect() {
 
   if (!employee) {
     return (
-      <div className="min-h-screen bg-[#0d0905] text-[#f5f0eb] flex items-center justify-center font-bold text-sm">
+      <div className="min-h-screen bg-[#f8fafc] text-[#0f172a] flex items-center justify-center font-bold text-sm">
         Loading employee profile...
       </div>
     );
   }
 
-  if (employee.role === 'chef') return <Navigate to="/kitchen" replace />;
+  // Chef has no operational order queue; redirected to profile
+  if (employee.role === 'chef') return <Navigate to="/profile" replace />;
   if (employee.role === 'waiter') return <Navigate to="/orders" replace />;
   if (employee.role === 'cashier') return <Navigate to="/payments" replace />;
   return <Navigate to="/profile" replace />;
@@ -72,6 +74,12 @@ export default function App() {
 
   return (
     <BrowserRouter>
+      {/* Global Non-Visual Employee Realtime Manager */}
+      <EmployeeRealtimeManager />
+
+      {/* Global Toaster for notifications across all pages */}
+      <Toaster position="top-center" reverseOrder={false} />
+
       <Routes>
         {/* Unauthenticated Login page */}
         <Route
@@ -81,14 +89,10 @@ export default function App() {
           }
         />
 
-        {/* Chef routes */}
+        {/* Legacy /kitchen route redirects to /profile */}
         <Route
           path="/kitchen"
-          element={
-            <RoleGuard allowedRoles={['chef']}>
-              <KitchenPage />
-            </RoleGuard>
-          }
+          element={<Navigate to="/profile" replace />}
         />
 
         {/* Waiter routes */}
@@ -129,11 +133,11 @@ export default function App() {
           }
         />
 
-        {/* Cashier scanner route */}
+        {/* Cashier & Waiter scanner route */}
         <Route
           path="/scan"
           element={
-            <RoleGuard allowedRoles={['cashier']}>
+            <RoleGuard allowedRoles={['cashier', 'waiter']}>
               <ScanPage />
             </RoleGuard>
           }

@@ -23,11 +23,8 @@ export default function InstallPrompt() {
 
     // Android / Desktop Chrome support
     const handleBeforeInstallPrompt = (e) => {
-      // Prevent the mini-infobar from appearing on mobile
       e.preventDefault();
-      // Stash the event so it can be triggered later.
       setDeferredPrompt(e);
-      // Update UI notify the user they can install the PWA
       setShowPrompt(true);
     };
 
@@ -40,14 +37,8 @@ export default function InstallPrompt() {
 
   const handleInstallClick = async () => {
     if (!deferredPrompt) return;
-    
-    // Show the install prompt
     deferredPrompt.prompt();
-    
-    // Wait for the user to respond to the prompt
-    const { outcome } = await deferredPrompt.userChoice;
-    
-    // We've used the prompt, and can't use it again, throw it away
+    await deferredPrompt.userChoice;
     setDeferredPrompt(null);
     setShowPrompt(false);
   };
@@ -60,11 +51,10 @@ export default function InstallPrompt() {
 
   return (
     <div className="fixed bottom-0 left-0 right-0 p-4 z-50 animate-fade-in-up">
-      <div className="glass rounded-2xl p-4 shadow-2xl flex flex-col gap-3"
-           style={{ background: 'rgba(20,15,10,0.95)', border: '1px solid var(--brand-primary-ring)' }}>
+      <div className="glass bg-white rounded-2xl p-4 shadow-2xl border border-slate-200 flex flex-col gap-3 max-w-sm mx-auto">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0"
+            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
                  style={{ background: 'var(--brand-primary)' }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
                    stroke="var(--brand-primary-text)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -74,15 +64,15 @@ export default function InstallPrompt() {
               </svg>
             </div>
             <div>
-              <h3 className="text-sm font-bold text-white">Install StampGo</h3>
-              <p className="text-xs text-white/60 mt-0.5">
+              <h3 className="text-sm font-bold text-slate-900">Install StampGo</h3>
+              <p className="text-xs text-slate-500 mt-0.5">
                 {isIOS 
                   ? 'Add to Home Screen for the best experience.' 
                   : 'Install this app for faster access and offline support.'}
               </p>
             </div>
           </div>
-          <button onClick={handleDismiss} className="text-white/40 hover:text-white shrink-0 p-1">
+          <button onClick={handleDismiss} className="text-slate-400 hover:text-slate-700 shrink-0 p-1">
             <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
                  stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
               <line x1="18" y1="6" x2="6" y2="18" />
@@ -92,21 +82,20 @@ export default function InstallPrompt() {
         </div>
 
         {isIOS ? (
-          <div className="flex items-center justify-center gap-2 mt-2 px-3 py-2 rounded-xl"
-               style={{ background: 'rgba(255,255,255,0.05)' }}>
-            <span className="text-xs text-white/80">Tap</span>
+          <div className="flex items-center justify-center gap-2 mt-1 px-3 py-2 rounded-xl bg-slate-50 border border-slate-100">
+            <span className="text-xs text-slate-600">Tap</span>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none" 
-                 stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-400">
+                 stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="text-blue-500">
               <path d="M4 12v8a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-8" />
               <polyline points="16 6 12 2 8 6" />
               <line x1="12" y1="2" x2="12" y2="15" />
             </svg>
-            <span className="text-xs text-white/80">then <strong>"Add to Home Screen"</strong></span>
+            <span className="text-xs text-slate-600">then <strong>"Add to Home Screen"</strong></span>
           </div>
         ) : (
           <button
             onClick={handleInstallClick}
-            className="w-full btn-primary py-2.5 mt-1"
+            className="w-full btn-primary py-2.5 mt-1 text-xs font-bold"
             style={{ borderRadius: '12px' }}
           >
             Install App

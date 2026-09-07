@@ -4,7 +4,7 @@ import { useStore } from '../store/useStore';
 
 export default function EmployeeLayout({ children }) {
   const navigate = useNavigate();
-  const { restaurant, employee, logout } = useStore();
+  const { restaurant, employee, token, socketConnected, logout } = useStore();
   const [isOnline, setIsOnline] = useState(navigator.onLine);
 
   useEffect(() => {
@@ -35,15 +35,6 @@ export default function EmployeeLayout({ children }) {
       case 'chef':
         return [
           {
-            to: '/kitchen',
-            label: 'Kitchen',
-            icon: (
-              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
-                <path strokeLinecap="round" strokeLinejoin="round" d="M12 6.253v13m0-13C10.832 5.477 9.246 5 7.5 5S4.168 5.477 3 6.253v13C4.168 18.477 5.754 18 7.5 18s3.332.477 4.5 1.253m0-13C13.168 5.477 14.754 5 16.5 5c1.747 0 3.332.477 4.5 1.253v13C19.832 18.477 18.247 18 16.5 18c-1.746 0-3.332.477-4.5 1.253" />
-              </svg>
-            )
-          },
-          {
             to: '/profile',
             label: 'Profile',
             icon: (
@@ -70,6 +61,18 @@ export default function EmployeeLayout({ children }) {
             icon: (
               <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
                 <path strokeLinecap="round" strokeLinejoin="round" d="M4 6h16M4 10h16M4 14h16M4 18h16" />
+              </svg>
+            )
+          },
+          {
+            to: '/scan',
+            label: 'Add Stamp',
+            icon: (
+              <svg xmlns="http://www.w3.org/2000/svg" className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth="2.5">
+                <rect x="3" y="3" width="7" height="7" rx="1"/>
+                <rect x="14" y="3" width="7" height="7" rx="1"/>
+                <rect x="3" y="14" width="7" height="7" rx="1"/>
+                <rect x="14" y="14" width="7" height="7" rx="1"/>
               </svg>
             )
           },
@@ -134,33 +137,33 @@ export default function EmployeeLayout({ children }) {
   const logoLetter = restaurantName[0]?.toUpperCase() || 'R';
 
   return (
-    <div className="min-h-screen flex flex-col pb-safe bg-[#0d0905] text-[#f5f0eb]">
+    <div className="min-h-screen flex flex-col pb-safe bg-[#f8fafc] text-[#0f172a]">
       {/* Header */}
       <header
         className="flex items-center justify-between px-5 py-3.5 sticky top-0 z-30"
         style={{
-          background: 'rgba(13,9,5,0.85)',
+          background: 'rgba(255, 255, 255, 0.88)',
           backdropFilter: 'blur(16px)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)'
+          borderBottom: '1px solid #e2e8f0'
         }}
       >
         <div className="flex items-center gap-3">
           <div
-            className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0"
+            className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm flex-shrink-0 shadow-sm"
             style={{ background: 'var(--brand-primary)', color: 'var(--brand-primary-text)' }}
           >
             {logoLetter}
           </div>
           <div className="min-w-0">
-            <p className="text-sm font-bold text-white leading-tight truncate">{restaurantName}</p>
-            <p className="text-xs text-white/35 leading-tight truncate capitalize">
+            <p className="text-sm font-bold text-slate-900 leading-tight truncate">{restaurantName}</p>
+            <p className="text-xs text-slate-500 leading-tight truncate capitalize">
               {employeeName} • {role}
             </p>
           </div>
         </div>
         <button
           onClick={handleLogout}
-          className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-white/50 hover:text-white transition-all bg-white/5"
+          className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-200 transition-all bg-slate-100 border border-slate-200"
         >
           <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
@@ -173,8 +176,16 @@ export default function EmployeeLayout({ children }) {
 
       {/* Offline Status Warning */}
       {!isOnline && (
-        <div className="bg-red-500/25 border-b border-red-500/40 text-red-200 text-center py-2.5 px-4 text-xs font-semibold animate-fade-in">
+        <div className="bg-red-50 border-b border-red-200 text-red-700 text-center py-2.5 px-4 text-xs font-semibold animate-fade-in">
           ⚠️ You're offline. Order actions are temporarily unavailable.
+        </div>
+      )}
+
+      {/* Reconnecting Live Updates Banner (only when internet is online, user is authenticated, but socket is reconnecting) */}
+      {isOnline && token && !socketConnected && (
+        <div className="bg-amber-50/80 border-b border-amber-200/60 text-amber-800 text-center py-1.5 px-4 text-[11px] font-medium flex items-center justify-center gap-2 animate-fade-in">
+          <span className="inline-block w-1.5 h-1.5 rounded-full bg-amber-500 animate-pulse" />
+          <span>Reconnecting live updates...</span>
         </div>
       )}
 
@@ -185,10 +196,11 @@ export default function EmployeeLayout({ children }) {
 
       {/* Bottom Navigation */}
       <nav
-        className="fixed bottom-0 left-0 right-0 z-30 flex justify-around items-center border-t border-white/5"
+        className="fixed bottom-0 left-0 right-0 z-30 flex justify-around items-center border-t border-slate-200"
         style={{
-          background: 'rgba(13,9,5,0.92)',
+          background: 'rgba(255, 255, 255, 0.92)',
           backdropFilter: 'blur(20px)',
+          boxShadow: '0 -4px 20px -4px rgba(15, 23, 42, 0.05)',
           paddingBottom: 'calc(8px + env(safe-area-inset-bottom))',
           paddingTop: '8px'
         }}
@@ -200,8 +212,8 @@ export default function EmployeeLayout({ children }) {
             className={({ isActive }) =>
               `flex flex-col items-center gap-1.5 py-1 px-4 text-xs font-medium rounded-xl transition-all ${
                 isActive
-                  ? 'text-white font-semibold'
-                  : 'text-white/40 hover:text-white/60'
+                  ? 'font-bold'
+                  : 'text-slate-400 hover:text-slate-600'
               }`
             }
             style={({ isActive }) => (isActive ? { color: 'var(--brand-primary)' } : {})}

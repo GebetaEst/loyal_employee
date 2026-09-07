@@ -32,8 +32,12 @@ export default function ConfirmationModal({ customerId, onClose, onSuccess }) {
   })();
 
   const displayCustomerId =
-    parsedCustomer?.customerId || parsedCustomer?._id || customerId;
-  const customerName = parsedCustomer?.name || parsedCustomer?.fullName || 'Unknown';
+    parsedCustomer?.customerId ||
+    parsedCustomer?.userId ||
+    parsedCustomer?._id ||
+    parsedCustomer?.id ||
+    (typeof customerId === 'string' ? customerId : '');
+  const customerName = parsedCustomer?.name || parsedCustomer?.fullName || 'Customer';
 
   const handleConfirm = async () => {
     if (!restaurantId) {
@@ -45,10 +49,6 @@ export default function ConfirmationModal({ customerId, onClose, onSuccess }) {
       return;
     }
     setLoading(true);
-    // console.log('Sending stamp for customer ID:', 
-    //   displayCustomerId, 'to restaurant:', 
-    //   restaurantId, 'with loyalty program:', 
-    //   loyaltyProgram);
     try {
       await api.post('/api/users/stamps', {
         customerId: displayCustomerId,
@@ -62,13 +62,13 @@ export default function ConfirmationModal({ customerId, onClose, onSuccess }) {
       });
       toast.success(' Stamp awarded successfully!', {
         duration: 3000,
-        style: { background: '#1a2e1a', color: '#86efac', border: '1px solid rgba(134,239,172,0.3)' },
+        style: { background: '#f0fdf4', color: '#15803d', border: '1px solid #bbf7d0' },
       });
       onSuccess();
     } catch (err) {
       const msg = err.response?.data?.message || err.response?.data?.error || 'Failed to send stamp.';
       toast.error(msg, {
-        style: { background: '#2e1a1a', color: '#fca5a5', border: '1px solid rgba(252,165,165,0.3)' },
+        style: { background: '#fef2f2', color: '#b91c1c', border: '1px solid #fecaca' },
       });
       onClose();
     } finally {
@@ -79,18 +79,17 @@ export default function ConfirmationModal({ customerId, onClose, onSuccess }) {
   return (
     <div
       className="fixed inset-0 z-50 flex items-end justify-center p-4 animate-fade-in"
-      style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(4px)' }}
+      style={{ background: 'rgba(15, 23, 42, 0.45)', backdropFilter: 'blur(6px)' }}
       onClick={(e) => { if (e.target === e.currentTarget && !loading) onClose(); }}
     >
-      <div className="glass w-full max-w-sm rounded-3xl p-6 flex flex-col gap-5 animate-fade-in-up"
+      <div className="glass w-full max-w-sm rounded-3xl p-6 flex flex-col gap-5 animate-fade-in-up bg-white shadow-2xl border border-slate-200"
         style={{ paddingBottom: 'max(24px, env(safe-area-inset-bottom))' }}>
 
         {/* Header */}
         <div className="flex items-center justify-between">
-          <h2 className="text-lg font-bold text-white">Confirm Stamp</h2>
+          <h2 className="text-lg font-black text-slate-900">Confirm Stamp</h2>
           {!loading && (
-            <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center transition-colors"
-              style={{ background: 'rgba(255,255,255,0.08)' }}
+            <button onClick={onClose} className="w-8 h-8 rounded-full flex items-center justify-center transition-colors bg-slate-100 hover:bg-slate-200 text-slate-500"
               aria-label="Close">
               <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
                 stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -101,10 +100,10 @@ export default function ConfirmationModal({ customerId, onClose, onSuccess }) {
         </div>
 
         {/* Stamp preview */}
-        <div className="rounded-2xl p-4 flex flex-col gap-3" style={{ background: 'rgba(255,255,255,0.05)' }}>
+        <div className="rounded-2xl p-4 flex flex-col gap-3 bg-slate-50 border border-slate-100">
           {/* Stamp icon */}
           <div className="flex items-center justify-center">
-            <div className="w-16 h-16 rounded-2xl flex items-center justify-center"
+            <div className="w-16 h-16 rounded-2xl flex items-center justify-center shadow-md"
               style={{ background: 'var(--brand-primary)' }}>
               <svg xmlns="http://www.w3.org/2000/svg" width="32" height="32" viewBox="0 0 24 24" fill="none"
                 stroke="var(--brand-primary-text)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
@@ -115,7 +114,6 @@ export default function ConfirmationModal({ customerId, onClose, onSuccess }) {
 
           {/* Details */}
           <div className="flex flex-col gap-2">
-            {/* <InfoRow label="Customer ID" value={displayCustomerId} mono /> */}
             <InfoRow label="Customer Name" value={customerName} />
             <InfoRow label="Restaurant" value={restaurantName} />
             <InfoRow label="Stamps to Add" value="× 1" highlight />
@@ -127,8 +125,7 @@ export default function ConfirmationModal({ customerId, onClose, onSuccess }) {
           <button
             onClick={onClose}
             disabled={loading}
-            className="flex-1 rounded-2xl py-3 text-sm font-semibold text-white/60 transition-all"
-            style={{ background: 'rgba(255,255,255,0.06)', border: '1px solid rgba(255,255,255,0.1)' }}
+            className="flex-1 rounded-2xl py-3 text-xs font-bold text-slate-600 hover:text-slate-900 bg-slate-100 hover:bg-slate-200 border border-slate-200 transition-all"
           >
             Cancel
           </button>
@@ -136,7 +133,7 @@ export default function ConfirmationModal({ customerId, onClose, onSuccess }) {
             id="confirm-stamp-btn"
             onClick={handleConfirm}
             disabled={loading}
-            className="flex-[2] btn-primary rounded-2xl py-3 text-sm"
+            className="flex-[2] btn-primary rounded-2xl py-3 text-xs font-bold"
             style={{ borderRadius: '16px', width: 'auto' }}
           >
             {loading ? <><SpinnerIcon /> Sending…</> : '🎯 Award Stamp'}
@@ -150,9 +147,9 @@ export default function ConfirmationModal({ customerId, onClose, onSuccess }) {
 function InfoRow({ label, value, mono, highlight }) {
   return (
     <div className="flex items-center justify-between">
-      <span className="text-xs text-white/40">{label}</span>
-      <span className={`text-sm font-semibold ${mono ? 'font-mono' : ''}`}
-        style={{ color: highlight ? 'var(--brand-primary)' : 'rgba(245,240,235,0.9)' }}>
+      <span className="text-xs text-slate-500 font-medium">{label}</span>
+      <span className={`text-sm font-bold ${mono ? 'font-mono' : ''}`}
+        style={{ color: highlight ? 'var(--brand-primary)' : '#0f172a' }}>
         {value}
       </span>
     </div>

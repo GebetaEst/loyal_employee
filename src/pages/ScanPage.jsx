@@ -3,6 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { Toaster } from 'react-hot-toast';
 import QRScanner from '../components/QRScanner';
 import ConfirmationModal from '../components/ConfirmationModal';
+import EmployeeLayout from '../components/EmployeeLayout';
 import { useStore } from '../store/useStore';
 import api from '../api/axios';
 
@@ -12,9 +13,9 @@ function MenuSkeleton() {
   return (
     <div className="grid grid-cols-2 gap-3">
       {[1, 2, 3, 4].map(i => (
-        <div key={i} className="rounded-2xl overflow-hidden">
-          <div className="skeleton h-28 w-full" />
-          <div className="p-3 flex flex-col gap-2">
+        <div key={i} className="rounded-2xl overflow-hidden bg-white border border-slate-200 p-2 shadow-sm">
+          <div className="skeleton h-24 w-full rounded-xl" />
+          <div className="p-2 flex flex-col gap-2">
             <div className="skeleton h-3 w-3/4" />
             <div className="skeleton h-3 w-1/2" />
           </div>
@@ -26,26 +27,25 @@ function MenuSkeleton() {
 
 function MenuItem({ item }) {
   return (
-    <div className="glass rounded-2xl overflow-hidden transition-all hover:scale-[1.01] flex gap-3 p-3">
+    <div className="glass bg-white rounded-2xl overflow-hidden transition-all hover:scale-[1.01] flex gap-3 p-3 border border-slate-200 shadow-sm">
       <div className="flex-shrink-0">
         {item.image ? (
-          <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-xl" loading="lazy" />
+          <img src={item.image} alt={item.name} className="w-16 h-16 object-cover rounded-xl border border-slate-100" loading="lazy" />
         ) : (
-          <div className="w-16 h-16 flex items-center justify-center text-3xl rounded-xl"
-            style={{ background: 'rgba(255,255,255,0.06)' }}>
+          <div className="w-16 h-16 flex items-center justify-center text-3xl rounded-xl bg-slate-100 border border-slate-200">
             🍽️
           </div>
         )}
       </div>
       <div className="flex-1 min-w-0">
-        <p className="text-sm font-semibold text-white/90 line-clamp-1">{item.name}</p>
+        <p className="text-sm font-bold text-slate-900 line-clamp-1">{item.name}</p>
         {item.price != null && (
-          <p className="text-base font-bold mt-0.5" style={{ color: 'var(--brand-primary)' }}>
-            ${Number(item.price).toFixed(2)}
+          <p className="text-sm font-black mt-0.5" style={{ color: 'var(--brand-primary)' }}>
+            ETB {Number(item.price).toFixed(2)}
           </p>
         )}
         {item.description && (
-          <p className="text-xs text-white/50 mt-1 line-clamp-2 leading-snug">{item.description}</p>
+          <p className="text-xs text-slate-500 mt-1 line-clamp-2 leading-snug">{item.description}</p>
         )}
       </div>
     </div>
@@ -54,7 +54,7 @@ function MenuItem({ item }) {
 
 export default function ScanPage() {
   const navigate = useNavigate();
-  const { restaurant, employee, token, menu: storedMenu, logout } = useStore();
+  const { restaurant, token, menu: storedMenu } = useStore();
 
   const [scanned, setScanned] = useState(null);
   const [locked, setLocked] = useState(false);
@@ -63,11 +63,10 @@ export default function ScanPage() {
   const lockTimer = useRef(null);
 
   const [menu, setMenu] = useState([]);
-  const [menuLoading, setMenuLoading] = useState(true);
+  const [menuLoading, setMenuLoading] = useState(false);
   const [menuOpen, setMenuOpen] = useState(false);
 
   const restaurantId = restaurant?._id || restaurant?.id;
-  const restaurantName = restaurant?.name || 'Restaurant';
 
   useEffect(() => {
     if (!token) {
@@ -75,13 +74,13 @@ export default function ScanPage() {
     }
   }, [navigate, token]);
 
+  // Lazy load menu when accordion is toggled
   useEffect(() => {
-    if (!restaurantId) return;
+    if (!menuOpen || menu.length > 0 || !restaurantId) return;
 
     if (storedMenu && storedMenu.length > 0) {
       const items = storedMenu.flatMap(category => category.items || [category]);
       setMenu(items);
-      setMenuLoading(false);
       return;
     }
 
@@ -96,7 +95,7 @@ export default function ScanPage() {
       })
       .catch(() => setMenu([]))
       .finally(() => setMenuLoading(false));
-  }, [restaurantId, storedMenu]);
+  }, [menuOpen, restaurantId, storedMenu, menu.length]);
 
   // Called only from a direct user tap — required for PWA permission dialog to fire
   const handleGrantCamera = useCallback(async () => {
@@ -126,23 +125,38 @@ export default function ScanPage() {
   const handleScan = useCallback((text) => {
     if (locked || scanned) return;
 
-    // Check if the QR code payload is a JSON string
+    // 1. Check if the QR code payload is a JSON string
     try {
       const parsed = JSON.parse(text);
-      if (parsed && (parsed.customerId || parsed.id || parsed._id)) {
+      if (parsed && (parsed.customerId || parsed.id || parsed._id || parsed.userId)) {
         setScanned(parsed);
         return;
       }
-    } catch (e) {
+    } catch {
       // Not JSON, continue with URL/text parsing
     }
 
-    let customerId = text;
+    // 2. Check if URL containing customer query parameter
     try {
       const url = new URL(text);
-      customerId = url.searchParams.get('customerId') || url.searchParams.get('id') || text;
-    } catch { }
-    setScanned(customerId);
+      const qId = url.searchParams.get('customerId') || url.searchParams.get('id') || url.searchParams.get('userId');
+      if (qId) {
+        setScanned(qId);
+        return;
+      }
+      const match = url.pathname.match(/\/customer\/([a-zA-Z0-9_-]+)/);
+      if (match?.[1]) {
+        setScanned(match[1]);
+        return;
+      }
+    } catch {
+      // Not a valid URL
+    }
+
+    // 3. Fallback to raw scanned text
+    if (text && text.trim()) {
+      setScanned(text.trim());
+    }
   }, [locked, scanned]);
 
   const handleModalClose = () => {
@@ -159,77 +173,37 @@ export default function ScanPage() {
 
   useEffect(() => () => clearTimeout(lockTimer.current), []);
 
-  const handleLogout = () => {
-    logout();
-    navigate('/login', { replace: true });
-  };
-
   return (
-    <div className="min-h-screen flex flex-col pb-safe">
+    <EmployeeLayout>
       <Toaster position="top-center" containerStyle={{ top: 20 }} />
 
-      {/* Header */}
-      <header className="flex items-center justify-between px-5 py-4 sticky top-0 z-30"
-        style={{
-          background: 'rgba(13,9,5,0.85)', backdropFilter: 'blur(16px)',
-          borderBottom: '1px solid rgba(255,255,255,0.06)'
-        }}>
-        <div className="flex items-center gap-3">
-          <div className="w-9 h-9 rounded-xl flex items-center justify-center font-bold text-sm"
-            style={{ background: 'var(--brand-primary)', color: 'var(--brand-primary-text)' }}>
-            {restaurantName[0]?.toUpperCase()}
-          </div>
-          <div>
-            <p className="text-sm font-bold text-white leading-tight">{restaurantName}</p>
-            <p className="text-xs text-white/35 leading-tight">
-              {employee?.employee?.name || employee?.fullName || 'Employee'}
-            </p>
-          </div>
-        </div>
-        <button
-          onClick={handleLogout}
-          className="flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-white/50 hover:text-white transition-all"
-          style={{ background: 'rgba(255,255,255,0.05)' }}
-        >
-          <svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none"
-            stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
-            <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
-            <polyline points="16 17 21 12 16 7" />
-            <line x1="21" y1="12" x2="9" y2="12" />
-          </svg>
-          Logout
-        </button>
-      </header>
-
-      <main className="flex-1 flex flex-col gap-6 px-5 py-6 overflow-y-auto">
-
+      <div className="flex flex-col gap-6 animate-fade-in max-w-md mx-auto">
         {/* Scanner section */}
-        <section>
-          <div className="flex items-center justify-between mb-4">
+        <section className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
             <div>
-              <h2 className="text-xl font-bold text-white">Scan Customer</h2>
-              <p className="text-xs text-white/40 mt-0.5">Point camera at customer's QR code</p>
+              <h1 className="text-2xl font-black text-slate-900">Scan Customer</h1>
+              <p className="text-xs text-slate-500 mt-0.5">Point camera at customer's loyalty QR code</p>
             </div>
-            <div className="flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-medium"
+            <div className="flex items-center gap-2 rounded-xl px-3 py-1.5 text-xs font-bold"
               style={{
-                background: locked ? 'rgba(234,179,8,0.12)' : 'rgba(74,222,128,0.12)',
-                color: locked ? '#fde047' : '#4ade80',
-                border: locked ? '1px solid rgba(234,179,8,0.25)' : '1px solid rgba(74,222,128,0.25)'
+                background: locked ? '#fef3c7' : '#dcfce7',
+                color: locked ? '#b45309' : '#15803d',
+                border: locked ? '1px solid #fde68a' : '1px solid #bbf7d0'
               }}>
-              <div className="w-1.5 h-1.5 rounded-full" style={{ background: locked ? '#fde047' : '#4ade80' }} />
+              <div className="w-1.5 h-1.5 rounded-full" style={{ background: locked ? '#f59e0b' : '#22c55e' }} />
               {locked ? 'Locked' : 'Ready'}
             </div>
           </div>
 
           {cameraGranted ? (
-            /* Camera is live — show scanner + a small "revoke/reset" button in case they need to re-prompt */
-            <div className="flex flex-col gap-3">
+            /* Camera is live — show scanner + a reset button */
+            <div className="flex flex-col items-center gap-3">
               <QRScanner onScan={handleScan} locked={locked} />
               <button
                 type="button"
                 onClick={handleGrantCamera}
-                className="self-start flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-medium text-white/40 hover:text-white/70 transition-all"
-                style={{ background: 'rgba(255,255,255,0.04)', border: '1px solid rgba(255,255,255,0.08)' }}
+                className="self-center flex items-center gap-2 rounded-xl px-3 py-2 text-xs font-semibold text-slate-600 hover:text-slate-900 hover:bg-slate-200 transition-all bg-slate-100 border border-slate-200 shadow-sm"
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="12" height="12" viewBox="0 0 24 24" fill="none"
                   stroke="currentColor" strokeWidth="2.5" strokeLinecap="round">
@@ -240,17 +214,17 @@ export default function ScanPage() {
               </button>
             </div>
           ) : (
-            /* Camera not yet granted — big tap-to-enable block */
-            <div className="flex flex-col gap-4 max-w-sm">
+            /* Camera not yet granted — tap-to-enable block */
+            <div className="flex flex-col gap-4">
               <button
                 id="request-camera-btn"
                 type="button"
                 onClick={handleGrantCamera}
-                className="flex items-center justify-center gap-3 rounded-2xl px-5 py-4 text-sm font-semibold text-white transition-all active:scale-95"
+                className="flex items-center justify-center gap-3 rounded-2xl px-5 py-4 text-sm font-bold text-white transition-all active:scale-95 shadow-md"
                 style={{
                   background: 'var(--brand-primary)',
                   color: 'var(--brand-primary-text)',
-                  boxShadow: '0 4px 20px rgba(0,0,0,0.3)'
+                  boxShadow: '0 4px 20px var(--brand-primary-ring)'
                 }}
               >
                 <svg xmlns="http://www.w3.org/2000/svg" width="18" height="18" viewBox="0 0 24 24" fill="none"
@@ -262,13 +236,12 @@ export default function ScanPage() {
               </button>
 
               {permissionError ? (
-                <div className="rounded-2xl px-4 py-3 text-xs leading-relaxed"
-                  style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', color: '#fca5a5' }}>
+                <div className="rounded-2xl px-4 py-3 text-xs leading-relaxed bg-red-50 border border-red-200 text-red-700">
                   {permissionError}
                 </div>
               ) : (
-                <p className="text-xs text-white/30 leading-relaxed px-1">
-                  Tap the button above to allow camera access. You'll see a system prompt — choose <strong className="text-white/50">Allow</strong>.
+                <p className="text-xs text-slate-400 leading-relaxed px-1 text-center">
+                  Tap the button above to allow camera access to scan customer loyalty QR codes.
                 </p>
               )}
             </div>
@@ -277,18 +250,17 @@ export default function ScanPage() {
 
         {/* Divider */}
         <div className="flex items-center gap-3">
-          <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.07)' }} />
-          <span className="text-xs text-white/25">menu</span>
-          <div className="flex-1 h-px" style={{ background: 'rgba(255,255,255,0.07)' }} />
+          <div className="flex-1 h-px bg-slate-200" />
+          <span className="text-xs text-slate-400 font-semibold uppercase tracking-wider">menu</span>
+          <div className="flex-1 h-px bg-slate-200" />
         </div>
 
-        {/* Menu section */}
+        {/* Menu accordion section */}
         <section>
           <button
             id="toggle-menu-btn"
             onClick={() => setMenuOpen(!menuOpen)}
-            className="w-full flex items-center justify-between rounded-2xl px-4 py-3 mb-4 transition-all"
-            style={{ background: 'rgba(255,255,255,0.05)', border: '1px solid rgba(255,255,255,0.08)' }}
+            className="w-full flex items-center justify-between rounded-2xl px-4 py-3 mb-4 transition-all bg-white hover:bg-slate-50 border border-slate-200 shadow-sm"
           >
             <div className="flex items-center gap-3">
               <div className="w-8 h-8 rounded-xl flex items-center justify-center"
@@ -299,13 +271,13 @@ export default function ScanPage() {
                 </svg>
               </div>
               <div className="text-left">
-                <p className="text-sm font-semibold text-white">Restaurant Menu</p>
-                <p className="text-xs text-white/35">{menu.length} items</p>
+                <p className="text-sm font-bold text-slate-900">Restaurant Menu</p>
+                <p className="text-xs text-slate-500">View restaurant items</p>
               </div>
             </div>
             <svg xmlns="http://www.w3.org/2000/svg" width="16" height="16" viewBox="0 0 24 24" fill="none"
               stroke="currentColor" strokeWidth="2.5" strokeLinecap="round"
-              className="transition-transform text-white/40"
+              className="transition-transform text-slate-400"
               style={{ transform: menuOpen ? 'rotate(180deg)' : 'rotate(0deg)' }}>
               <polyline points="6 9 12 15 18 9" />
             </svg>
@@ -316,9 +288,9 @@ export default function ScanPage() {
               {menuLoading ? (
                 <MenuSkeleton />
               ) : menu.length === 0 ? (
-                <div className="flex flex-col items-center gap-3 py-12 text-center">
+                <div className="flex flex-col items-center gap-3 py-12 text-center bg-white border border-slate-200 rounded-3xl shadow-sm p-6">
                   <span className="text-4xl">🍽️</span>
-                  <p className="text-sm text-white/40">No menu items available</p>
+                  <p className="text-sm text-slate-400">No menu items available</p>
                 </div>
               ) : (
                 <div className="grid grid-cols-2 gap-3">
@@ -330,7 +302,7 @@ export default function ScanPage() {
             </div>
           )}
         </section>
-      </main>
+      </div>
 
       {scanned && (
         <ConfirmationModal
@@ -339,6 +311,6 @@ export default function ScanPage() {
           onSuccess={handleSuccess}
         />
       )}
-    </div>
+    </EmployeeLayout>
   );
 }
