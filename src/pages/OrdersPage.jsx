@@ -6,18 +6,22 @@ import { useStore } from '../store/useStore';
 
 export default function OrdersPage() {
   const ordersRevision = useStore((state) => state.ordersRevision);
-  const [activeOrders, setActiveOrders] = useState([]);
-  const [historyOrders, setHistoryOrders] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
+  const activeOrders = useStore((state) => state.activeOrders);
+  const historyOrders = useStore((state) => state.historyOrders);
+  const loading = useStore((state) => state.ordersLoading);
+  const error = useStore((state) => state.ordersError);
+  const setActiveOrders = useStore((state) => state.setActiveOrders);
+  const setHistoryOrders = useStore((state) => state.setHistoryOrders);
+  const setOrdersLoading = useStore((state) => state.setOrdersLoading);
+  const setOrdersError = useStore((state) => state.setOrdersError);
 
   const inFlightRef = useRef(false);
   const fetchSeqRef = useRef(0);
   const initialMountRef = useRef(true);
 
   const fetchOrders = useCallback(async (showSkeleton = false) => {
-    if (showSkeleton) setLoading(true);
-    setError('');
+    if (showSkeleton) setOrdersLoading(true);
+    setOrdersError('');
 
     const currentSeq = ++fetchSeqRef.current;
     inFlightRef.current = true;
@@ -41,14 +45,14 @@ export default function OrdersPage() {
     } catch (err) {
       if (currentSeq !== fetchSeqRef.current) return;
       console.error('🔥 Error fetching waiter orders:', err);
-      setError(err.response?.data?.message || err.response?.data?.error || 'Failed to sync order queue.');
+      setOrdersError(err.response?.data?.message || err.response?.data?.error || 'Failed to sync order queue.');
     } finally {
       if (currentSeq === fetchSeqRef.current) {
         inFlightRef.current = false;
-        setLoading(false);
+        setOrdersLoading(false);
       }
     }
-  }, []);
+  }, [setActiveOrders, setHistoryOrders, setOrdersLoading, setOrdersError]);
 
   // Initial fetch on mount
   useEffect(() => {

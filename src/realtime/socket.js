@@ -54,6 +54,7 @@ export function connectEmployeeSocket(token) {
     reconnectionAttempts: Infinity,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 10000,
+    transports: ['websocket'], // Direct WebSocket transport, skip polling handshake
   });
 
   // Global event listener: logs ANY event triggered from the backend

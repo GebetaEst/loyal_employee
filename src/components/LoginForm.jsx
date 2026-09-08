@@ -49,6 +49,7 @@ export default function LoginForm({ employeeId }) {
       console.log('Employee ID:', employeeId);
       // 1. Login
       const loginRes = await api.post('/api/restaurants/employee/login', { employeeId, password });
+      console.log('Login response:', loginRes.data);
       const { token, employee } = loginRes.data;
       setAuth({ token, employee });
 

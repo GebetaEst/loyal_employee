@@ -93,7 +93,12 @@ export default function EmployeeRealtimeManager() {
         return;
       }
 
-      // Schedule debounced REST refetch
+      // 1. Immediately apply new order to central store (0ms UI update)
+      if (order && (order.id || order._id)) {
+        useStore.getState().upsertActiveOrder(order, employee);
+      }
+
+      // 2. Schedule debounced background REST sync as safety net
       scheduleOrdersRefresh();
 
       // Show toast and optional vibration for assigned waiter
@@ -116,7 +121,8 @@ export default function EmployeeRealtimeManager() {
 
     // Handle order:updated
     const handleOrderUpdated = (payload = {}) => {
-      const order = payload?.order || payload?.data?.order || payload?.data || payload;
+      const order = payload?.data?.order || payload?.order;
+      const orderId = payload?.data?.orderId || payload?.orderId || order?.id || order?._id;
       const orderNum = order?.orderNumber || payload?.orderNumber || payload?.data?.orderNumber;
       const currentStep = payload?.data?.currentStepKey || payload?.currentStepKey || order?.currentStepKey || order?.status;
 
@@ -137,13 +143,25 @@ export default function EmployeeRealtimeManager() {
         return;
       }
 
-      // Silently schedule debounced refetch to refresh order state across devices
+      // 1. Immediately apply updated order to central store (0ms UI update)
+      if (orderId) {
+        useStore.getState().updateOrderState(orderId, {
+          ...payload?.data,
+          order,
+          currentStepKey: currentStep,
+          systemState: payload?.data?.systemState || order?.systemState,
+          updatedAt: payload?.data?.updatedAt || order?.updatedAt,
+        }, employee);
+      }
+
+      // 2. Silently schedule debounced refetch to refresh order state across devices
       scheduleOrdersRefresh();
     };
 
     // Handle order:cancelled
     const handleOrderCancelled = (payload = {}) => {
-      const order = payload?.order || payload?.data?.order || payload?.data || payload;
+      const order = payload?.data?.order || payload?.order;
+      const orderId = payload?.data?.orderId || payload?.orderId || order?.id || order?._id;
       const orderNum = order?.orderNumber || payload?.orderNumber || payload?.data?.orderNumber;
       const reason = payload?.data?.reason || payload?.reason || order?.cancellation?.reason || 'Cancelled';
 
@@ -164,6 +182,12 @@ export default function EmployeeRealtimeManager() {
         return;
       }
 
+      // 1. Immediately cancel in central store (0ms UI update)
+      if (orderId) {
+        useStore.getState().cancelOrderState(orderId, reason);
+      }
+
+      // 2. Schedule debounced background sync
       scheduleOrdersRefresh();
 
       if (orderNum) {
@@ -175,6 +199,7 @@ export default function EmployeeRealtimeManager() {
     const handleOrdersInvalidate = (payload = {}) => {
       const reason = payload?.data?.reason || payload?.reason || 'sync';
       const orderId = payload?.data?.orderId || payload?.orderId;
+      const order = payload?.data?.order || payload?.order;
 
       console.log(
         `%c⚡ [Socket.IO Event: orders:invalidate]%c Reason: ${reason} ${orderId ? `(Order: ${orderId})` : ''}`,
@@ -191,6 +216,10 @@ export default function EmployeeRealtimeManager() {
 
       if (isDuplicateEvent(payload?.eventId)) {
         return;
+      }
+
+      if (order && (order.id || order._id)) {
+        useStore.getState().upsertActiveOrder(order, employee);
       }
 
       scheduleOrdersRefresh();
