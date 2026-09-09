@@ -106,7 +106,7 @@ export const useStore = create((set, get) => ({
           : [order, ...state.historyOrders];
         return {
           activeOrders: filteredActive,
-          historyOrders: nextHistory.slice(0, 5),
+          historyOrders: nextHistory.slice(0, 25),
         };
       });
       return;
@@ -137,7 +137,7 @@ export const useStore = create((set, get) => ({
     });
   },
 
-  updateOrderState: (orderId, updates = {}, employee) => {
+  updateOrderState: (orderId, updates = {}) => {
     if (!orderId) return;
     const fullOrder = updates.order;
     const currentStepKey = (updates.currentStepKey || fullOrder?.currentStepKey || '').toLowerCase();
@@ -164,7 +164,7 @@ export const useStore = create((set, get) => ({
 
         return {
           activeOrders: nextActive,
-          historyOrders: nextHistory.slice(0, 5),
+          historyOrders: nextHistory.slice(0, 25),
         };
       }
 
