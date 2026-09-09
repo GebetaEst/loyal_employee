@@ -259,11 +259,11 @@ export default function OrdersPage() {
         </div>
 
         {/* Swipe Hint Indicator */}
-        <div className="flex items-center justify-center gap-1.5 text-[11px] font-medium text-slate-400 -mt-1">
+        {/* <div className="flex items-center justify-center gap-1.5 text-[11px] font-medium text-slate-400 -mt-1">
           <span>
             {activeTab === 'active' ? 'Swipe left for history ←' : '→ Swipe right for active orders'}
           </span>
-        </div>
+        </div> */}
 
         {/* Error Alert */}
         {error && (
