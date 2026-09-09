@@ -97,13 +97,15 @@ export default function MyTablesPage() {
               >
                 <span className="text-[10px] font-black uppercase tracking-widest text-slate-400">Table Code: {table.code}</span>
                 <h3 className="text-lg font-black text-slate-900">{table.name}</h3>
-                {table.description && (
+                {/* {table.description && (
+                  <p className="text-xs text-slate-600 leading-relaxed">{table.description}</p>
+                )} */}
+                <div className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-green-700 bg-green-50 border border-green-200 rounded-lg px-2.5 py-1 self-start">
+                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
+                   {table.description && (
                   <p className="text-xs text-slate-600 leading-relaxed">{table.description}</p>
                 )}
-                {/* <div className="mt-2 flex items-center gap-1.5 text-[11px] font-bold text-green-700 bg-green-50 border border-green-200 rounded-lg px-2.5 py-1 self-start">
-                  <div className="w-1.5 h-1.5 rounded-full bg-green-500" />
-                  Assigned Waiter: Active
-                </div> */}
+                </div>
               </div>
             ))}
           </div>
