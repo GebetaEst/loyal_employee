@@ -129,23 +129,32 @@ export default function LoginPage() {
       <div className="relative w-full max-w-sm flex flex-col items-center gap-7 animate-fade-in">
         {/* Logo / Brand */}
         <div className="flex flex-col items-center gap-3.5">
-          <div className="w-20 h-20 rounded-3xl flex items-center justify-center shadow-lg"
-            style={{ background: 'var(--brand-primary)', boxShadow: '0 12px 30px var(--brand-primary-ring)' }}>
-            <span className="text-3xl font-black" style={{ color: 'var(--brand-primary-text)' }}>
-              {logoLetter}
-            </span>
-          </div>
+          {restaurant?.name ? (
+            <div className="w-20 h-20 rounded-3xl flex items-center justify-center shadow-lg"
+              style={{ background: 'var(--brand-primary)', boxShadow: '0 12px 30px var(--brand-primary-ring)' }}>
+              <span className="text-3xl font-black" style={{ color: 'var(--brand-primary-text)' }}>
+                {logoLetter}
+              </span>
+            </div>
+          ) : (
+            <img
+              src="/images/employee_app_icon.png"
+              alt="Loyal"
+              className="w-20 h-20 rounded-3xl object-cover shadow-lg"
+              style={{ boxShadow: '0 12px 30px var(--brand-primary-ring)' }}
+            />
+          )}
 
           <div className="text-center">
             {restaurant?.name ? (
               <>
                 <h1 className="text-2xl font-black text-slate-900">{restaurant.name}</h1>
-                <p className="text-xs font-semibold text-slate-500 mt-1 uppercase tracking-wider">Employee Portal</p>
+                <p className="text-xs font-semibold text-slate-500 mt-1 uppercase tracking-wider">Loyal Employee Portal</p>
               </>
             ) : (
               <>
                 <h1 className="text-2xl font-black text-slate-900">
-                  Employee <span style={{ color: 'var(--brand-primary)' }}>Portal</span>
+                  Loyal <span style={{ color: 'var(--brand-primary)' }}>Employee</span>
                 </h1>
                 <p className="text-xs font-semibold text-slate-500 mt-1 uppercase tracking-wider">Staff Workspace</p>
               </>
@@ -266,7 +275,7 @@ export default function LoginPage() {
 
         {/* Footer */}
         <p className="text-xs text-slate-400 text-center font-medium">
-          StampGo Employee · Powered by Loyalty
+          Loyal Employee
         </p>
       </div>
     </div>

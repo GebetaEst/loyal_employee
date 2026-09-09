@@ -54,17 +54,13 @@ export default function InstallPrompt() {
       <div className="glass bg-white rounded-2xl p-4 shadow-2xl border border-slate-200 flex flex-col gap-3 max-w-sm mx-auto">
         <div className="flex items-start justify-between">
           <div className="flex items-center gap-3">
-            <div className="w-10 h-10 rounded-xl flex items-center justify-center shrink-0 shadow-sm"
-                 style={{ background: 'var(--brand-primary)' }}>
-              <svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none"
-                   stroke="var(--brand-primary-text)" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
-                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
-                <polyline points="7 10 12 15 17 10" />
-                <line x1="12" y1="15" x2="12" y2="3" />
-              </svg>
-            </div>
+            <img
+              src="/images/employee_app_icon.png"
+              alt="Loyal"
+              className="w-10 h-10 rounded-xl object-cover shadow-sm shrink-0"
+            />
             <div>
-              <h3 className="text-sm font-bold text-slate-900">Install StampGo</h3>
+              <h3 className="text-sm font-bold text-slate-900">Install Loyal</h3>
               <p className="text-xs text-slate-500 mt-0.5">
                 {isIOS 
                   ? 'Add to Home Screen for the best experience.' 
