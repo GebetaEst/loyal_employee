@@ -40,16 +40,17 @@ export default function OrdersPage() {
   const historyOrders = useStore((state) => state.historyOrders);
   const loading = useStore((state) => state.ordersLoading);
   const error = useStore((state) => state.ordersError);
-  const restaurant = useStore((state) => state.restaurant);
   const employee = useStore((state) => state.employee);
+
+  const tables = useStore((state) => state.tables);
+  const tablesLoading = useStore((state) => state.tablesLoading);
+  const fetchTables = useStore((state) => state.fetchTables);
 
   const setActiveOrders = useStore((state) => state.setActiveOrders);
   const setHistoryOrders = useStore((state) => state.setHistoryOrders);
   const setOrdersLoading = useStore((state) => state.setOrdersLoading);
   const setOrdersError = useStore((state) => state.setOrdersError);
 
-  const [tables, setTables] = useState([]);
-  const [tablesLoading, setTablesLoading] = useState(true);
   const [selectedTable, setSelectedTable] = useState(null);
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
   const [now, setNow] = useState(0);
@@ -58,7 +59,6 @@ export default function OrdersPage() {
   const fetchSeqRef = useRef(0);
   const initialMountRef = useRef(true);
 
-  const restaurantId = restaurant?._id || restaurant?.id || employee?.restaurant;
   const employeeId = employee?.id || employee?._id;
 
   // 60-second timer to update elapsed wait times and colors
@@ -69,24 +69,6 @@ export default function OrdersPage() {
     }, 60000);
     return () => clearInterval(timer);
   }, []);
-
-  // Fetch tables assigned to the restaurant
-  const fetchTables = useCallback(async () => {
-    if (!restaurantId) {
-      setTablesLoading(false);
-      return;
-    }
-    try {
-      const res = await api.get(`/api/restaurants/${restaurantId}/tables`);
-      if (res.data?.success) {
-        setTables(res.data.data || []);
-      }
-    } catch (err) {
-      console.error('🔥 Error fetching tables for OrdersPage:', err);
-    } finally {
-      setTablesLoading(false);
-    }
-  }, [restaurantId]);
 
   const fetchOrders = useCallback(async (showSkeleton = false) => {
     if (showSkeleton) setOrdersLoading(true);
@@ -123,10 +105,10 @@ export default function OrdersPage() {
     }
   }, [setActiveOrders, setHistoryOrders, setOrdersLoading, setOrdersError]);
 
-  // Initial fetch on mount
+  // Initial fetch on mount - tables only fetched if not already cached
   useEffect(() => {
     fetchOrders(true);
-    fetchTables();
+    fetchTables(false);
   }, [fetchOrders, fetchTables]);
 
   // React to realtime ordersRevision changes
@@ -138,9 +120,8 @@ export default function OrdersPage() {
     if (navigator.onLine) {
       // console.log(`🔄 [OrdersPage] Realtime revision change detected (ordersRevision: ${ordersRevision}) -> Refetching queue via REST`);
       fetchOrders(false);
-      fetchTables();
     }
-  }, [ordersRevision, fetchOrders, fetchTables]);
+  }, [ordersRevision, fetchOrders]);
 
   // Fallback 30-second polling for reconciliation
   useEffect(() => {
@@ -158,13 +139,11 @@ export default function OrdersPage() {
     const handleResume = () => {
       if (navigator.onLine && document.visibilityState !== 'hidden') {
         fetchOrders(false);
-        fetchTables();
       }
     };
 
     const handleOnline = () => {
       fetchOrders(false);
-      fetchTables();
     };
 
     window.addEventListener('focus', handleResume);
@@ -176,7 +155,7 @@ export default function OrdersPage() {
       document.removeEventListener('visibilitychange', handleResume);
       window.removeEventListener('online', handleOnline);
     };
-  }, [fetchOrders, fetchTables]);
+  }, [fetchOrders]);
 
   // Tab state & smooth transitions
   const [activeTab, setActiveTab] = useState('active'); // 'active' | 'history'

@@ -1,41 +1,16 @@
-import { useCallback, useEffect, useState } from 'react';
-import api from '../api/axios';
+import { useEffect } from 'react';
 import EmployeeLayout from '../components/EmployeeLayout';
 import { useStore } from '../store/useStore';
 
 export default function MyTablesPage() {
-  const { restaurant, employee } = useStore();
-  const [tables, setTables] = useState([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState('');
-
-  const restaurantId = restaurant?._id || restaurant?.id || employee?.restaurant;
-
-  const fetchTables = useCallback(async () => {
-    if (!restaurantId) {
-      setError('Restaurant context missing. Please log in again.');
-      setLoading(false);
-      return;
-    }
-    setError('');
-    try {
-      const res = await api.get(`/api/restaurants/${restaurantId}/tables`);
-      if (res.data?.success) {
-        setTables(res.data.data || []);
-      } else {
-        setError('Failed to load tables.');
-      }
-    } catch (err) {
-      console.error('🔥 Error fetching tables:', err);
-      const msg = err.response?.data?.message || err.response?.data?.error || 'Failed to sync tables.';
-      setError(msg);
-    } finally {
-      setLoading(false);
-    }
-  }, [restaurantId]);
+  const tables = useStore((state) => state.tables);
+  const loading = useStore((state) => state.tablesLoading);
+  const error = useStore((state) => state.tablesError);
+  const fetchTables = useStore((state) => state.fetchTables);
+  const employee = useStore((state) => state.employee);
 
   useEffect(() => {
-    fetchTables();
+    fetchTables(false);
   }, [fetchTables]);
 
   const employeeId = employee?.id || employee?._id;

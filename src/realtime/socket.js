@@ -57,53 +57,21 @@ export function connectEmployeeSocket(token) {
     transports: ['websocket'], // Direct WebSocket transport, skip polling handshake
   });
 
-  // Global event listener: logs ANY event triggered from the backend
-  socket.onAny((event, ...args) => {
-    const time = new Date().toLocaleTimeString();
-    const payload = args.length === 1 ? args[0] : args;
-    // console.log(
-    //   `%c⚡ [Socket.IO Triggered]%c ${event} %c@ ${time}`,
-    //   'background: #2563eb; color: #ffffff; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
-    //   'color: #0284c7; font-weight: bold;',
-    //   'color: #64748b; font-size: 11px;',
-    //   payload
-    // );
-  });
+  // Global event listener
+  socket.onAny(() => {});
 
-  // Global outgoing event listener: logs ANY event emitted from client
+  // Global outgoing event listener
   if (typeof socket.onAnyOutgoing === 'function') {
-    socket.onAnyOutgoing((event, ...args) => {
-      const time = new Date().toLocaleTimeString();
-      const payload = args.length === 1 ? args[0] : args;
-      // console.log(
-      //   `%c📤 [Socket.IO Emitted]%c ${event} %c@ ${time}`,
-      //   'background: #7c3aed; color: #ffffff; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
-      //   'color: #7c3aed; font-weight: bold;',
-      //   'color: #64748b; font-size: 11px;',
-      //   payload
-      // );
-    });
+    socket.onAnyOutgoing(() => {});
   }
 
   socket.on('connect', () => {
-    const transport = socket.io?.engine?.transport?.name || 'websocket';
-    // console.log(
-    //   `%c✅ [Socket.IO Connected]%c ID: ${socket.id} %c(${transport})`,
-    //   'background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
-    //   'color: #059669; font-weight: bold;',
-    //   'color: #64748b; font-size: 11px;'
-    // );
     useStore.getState().setSocketConnected(true);
     // Connect & reconnect reconciliation: refetch authoritative REST orders
     useStore.getState().bumpOrdersRevision();
   });
 
-  socket.on('disconnect', (reason) => {
-    // console.log(
-    //   `%c❌ [Socket.IO Disconnected]%c Reason: ${reason}`,
-    //   'background: #ef4444; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
-    //   'color: #dc2626; font-weight: bold;'
-    // );
+  socket.on('disconnect', () => {
     useStore.getState().setSocketConnected(false);
   });
 
@@ -119,21 +87,9 @@ export function connectEmployeeSocket(token) {
 
   // Reconnection lifecycle logging
   if (socket.io) {
-    socket.io.on('reconnect_attempt', (attempt) => {
-      // console.log(
-      //   `%c🔄 [Socket.IO Reconnecting]%c Attempt #${attempt}...`,
-      //   'background: #3b82f6; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
-      //   'color: #2563eb; font-weight: bold;'
-      // );
-    });
+    socket.io.on('reconnect_attempt', () => {});
 
-    socket.io.on('reconnect', (attempt) => {
-      // console.log(
-      //   `%c✅ [Socket.IO Reconnected]%c Succeeded after ${attempt} attempt(s)`,
-      //   'background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
-      //   'color: #059669; font-weight: bold;'
-      // );
-    });
+    socket.io.on('reconnect', () => {});
 
     socket.io.on('reconnect_error', (err) => {
       console.warn(

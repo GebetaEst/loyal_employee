@@ -1,4 +1,5 @@
 import { create } from 'zustand';
+import api from '../api/axios';
 import { applyTheme, resetTheme } from '../lib/theme';
 
 const STORAGE_SESSION_KEY = 'emp_session';
@@ -16,9 +17,24 @@ const getStoredSession = () => {
 const saveSession = (session) => {
   try {
     if (session) {
-      // Exclude menu from the stored localStorage JSON to keep storage clean
-      const sessionToStore = { ...session };
-      delete sessionToStore.menu;
+      // Exclude menu, tables, and operational queues to prevent overloading localStorage
+      const sessionToStore = {
+        token: session.token,
+        employee: session.employee ? {
+          id: session.employee.id || session.employee._id,
+          _id: session.employee.id || session.employee._id,
+          name: session.employee.name,
+          employeeId: session.employee.employeeId,
+          role: session.employee.role,
+          restaurant: session.employee.restaurant,
+        } : null,
+        restaurant: session.restaurant ? {
+          id: session.restaurant.id || session.restaurant._id,
+          _id: session.restaurant.id || session.restaurant._id,
+          name: session.restaurant.name,
+          themeColor: session.restaurant.themeColor,
+        } : null,
+      };
       localStorage.setItem(STORAGE_SESSION_KEY, JSON.stringify(sessionToStore));
     } else {
       localStorage.removeItem(STORAGE_SESSION_KEY);
@@ -33,6 +49,28 @@ if (storedSession?.restaurant?.themeColor) {
   applyTheme(storedSession.restaurant.themeColor);
 }
 
+/**
+ * Normalizes table objects to retain ONLY necessary operational data in memory,
+ * discarding heavy server-side metadata to keep client state minimal.
+ */
+function normalizeTable(t) {
+  if (!t) return null;
+  return {
+    id: (t.id || t._id)?.toString(),
+    _id: (t.id || t._id)?.toString(),
+    name: t.name || '',
+    code: t.code || '',
+    description: t.description || '',
+    assignedWaiter: t.assignedWaiter ? {
+      id: (t.assignedWaiter.id || t.assignedWaiter._id || t.assignedWaiter)?.toString(),
+      _id: (t.assignedWaiter.id || t.assignedWaiter._id || t.assignedWaiter)?.toString(),
+      name: t.assignedWaiter.name || '',
+      role: t.assignedWaiter.role || 'waiter',
+    } : null,
+    isActive: t.isActive !== false,
+  };
+}
+
 export const useStore = create((set, get) => ({
   // ─── Auth ───
   token: storedSession?.token || null,
@@ -44,6 +82,12 @@ export const useStore = create((set, get) => ({
   // ─── Restaurant ───
   restaurant: storedSession?.restaurant || null,
   menu: [], // Menu is only stored in memory state, not loaded from local storage
+
+  // ─── Tables State (In-memory cache only, excluded from localStorage) ───
+  tables: [],
+  tablesLoaded: false,
+  tablesLoading: false,
+  tablesError: '',
 
   // ─── Realtime ───
   socketConnected: false,
@@ -86,6 +130,49 @@ export const useStore = create((set, get) => ({
 
   setOrdersError: (ordersError) =>
     set({ ordersError, ordersLoading: false }),
+
+  // ─── Table Actions (Cached in Zustand, re-fetches only on explicit refresh) ───
+  setTables: (rawTables) => {
+    const clean = (rawTables || []).map(normalizeTable).filter(Boolean);
+    set({ tables: clean, tablesLoaded: true, tablesLoading: false, tablesError: '' });
+  },
+
+  fetchTables: async (force = false) => {
+    const state = get();
+    // Cache guard: If tables are already loaded in memory and not forced, return cached tables
+    if (!force && state.tablesLoaded) {
+      return state.tables;
+    }
+    if (state.tablesLoading) return state.tables;
+
+    const restaurantId = state.restaurant?._id || state.restaurant?.id || state.employee?.restaurant;
+    if (!restaurantId) {
+      set({ tablesLoading: false, tablesError: 'Restaurant context missing.' });
+      return [];
+    }
+
+    set({ tablesLoading: true, tablesError: '' });
+    try {
+      const res = await api.get(`/api/restaurants/${restaurantId}/tables`);
+      if (res.data?.success) {
+        const clean = (res.data.data || []).map(normalizeTable).filter(Boolean);
+        set({
+          tables: clean,
+          tablesLoaded: true,
+          tablesLoading: false,
+          tablesError: '',
+        });
+        return clean;
+      } else {
+        set({ tablesLoading: false, tablesError: 'Failed to load tables.' });
+      }
+    } catch (err) {
+      console.error('🔥 Error fetching tables in useStore:', err);
+      const msg = err.response?.data?.message || err.response?.data?.error || 'Failed to sync tables.';
+      set({ tablesLoading: false, tablesError: msg });
+    }
+    return get().tables;
+  },
 
   upsertActiveOrder: (order, employee) => {
     if (!order) return;
@@ -268,6 +355,10 @@ export const useStore = create((set, get) => ({
       employee: null,
       restaurant: null,
       menu: [],
+      tables: [],
+      tablesLoaded: false,
+      tablesLoading: false,
+      tablesError: '',
       savedEmployeeId: id,
       socketConnected: false,
       ordersRevision: 0,
@@ -295,6 +386,10 @@ export const useStore = create((set, get) => ({
       employee: null,
       restaurant: null,
       menu: [],
+      tables: [],
+      tablesLoaded: false,
+      tablesLoading: false,
+      tablesError: '',
       socketConnected: false,
       ordersRevision: 0,
       lastRealtimeAt: null,

@@ -1,40 +1,33 @@
-import { useEffect, useState } from 'react';
+import { useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
-import api from '../api/axios';
 import EmployeeLayout from '../components/EmployeeLayout';
 import { useStore } from '../store/useStore';
 
 export default function ProfilePage() {
   const navigate = useNavigate();
-  const { restaurant, employee, logout } = useStore();
-  const [assignedTables, setAssignedTables] = useState([]);
-  const [loadingTables, setLoadingTables] = useState(false);
+  const tables = useStore((state) => state.tables);
+  const loadingTables = useStore((state) => state.tablesLoading);
+  const fetchTables = useStore((state) => state.fetchTables);
+  const restaurant = useStore((state) => state.restaurant);
+  const employee = useStore((state) => state.employee);
+  const logout = useStore((state) => state.logout);
 
   const role = employee?.role || 'employee';
   const employeeName = employee?.name || 'Staff';
   const restaurantName = restaurant?.name || 'Restaurant';
-  const restaurantId = restaurant?._id || restaurant?.id || employee?.restaurant;
   const employeeId = employee?.id || employee?._id;
 
-  // Load assigned tables for waiters
+  // Load assigned tables for waiters (uses Zustand in-memory cache)
   useEffect(() => {
-    if (role !== 'waiter' || !restaurantId) return;
+    if (role === 'waiter') {
+      fetchTables(false);
+    }
+  }, [role, fetchTables]);
 
-    setLoadingTables(true);
-    api.get(`/api/restaurants/${restaurantId}/tables`)
-      .then((res) => {
-        if (res.data?.success) {
-          const allTables = res.data.data || [];
-          const filtered = allTables.filter((table) => {
-            const assignedId = table.assignedWaiter?.id || table.assignedWaiter?._id || table.assignedWaiter;
-            return assignedId && employeeId && assignedId.toString() === employeeId.toString();
-          });
-          setAssignedTables(filtered);
-        }
-      })
-      .catch((err) => console.error('🔥 Error fetching tables on profile:', err))
-      .finally(() => setLoadingTables(false));
-  }, [role, restaurantId, employeeId]);
+  const assignedTables = (tables || []).filter((table) => {
+    const assignedId = table.assignedWaiter?.id || table.assignedWaiter?._id || table.assignedWaiter;
+    return assignedId && employeeId && assignedId.toString() === employeeId.toString();
+  });
 
   const handleLogout = () => {
     logout();
