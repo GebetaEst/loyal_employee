@@ -90,7 +90,8 @@ export const useStore = create((set, get) => ({
   upsertActiveOrder: (order, employee) => {
     if (!order) return;
     const currentEmployee = employee || get().employee;
-    const orderId = order.id || order._id;
+    const orderId = (order.id || order._id)?.toString();
+    if (!orderId) return;
 
     // Check terminal states
     const stepKey = (order.currentStepKey || '').toLowerCase();
@@ -99,10 +100,10 @@ export const useStore = create((set, get) => ({
 
     if (isTerminal) {
       set((state) => {
-        const filteredActive = state.activeOrders.filter((o) => (o.id || o._id) !== orderId);
-        const existsInHistory = state.historyOrders.some((o) => (o.id || o._id) === orderId);
+        const filteredActive = state.activeOrders.filter((o) => (o.id || o._id)?.toString() !== orderId);
+        const existsInHistory = state.historyOrders.some((o) => (o.id || o._id)?.toString() === orderId);
         const nextHistory = existsInHistory
-          ? state.historyOrders.map((o) => ((o.id || o._id) === orderId ? { ...o, ...order } : o))
+          ? state.historyOrders.map((o) => ((o.id || o._id)?.toString() === orderId ? { ...o, ...order } : o))
           : [order, ...state.historyOrders];
         return {
           activeOrders: filteredActive,
@@ -124,10 +125,10 @@ export const useStore = create((set, get) => ({
     }
 
     set((state) => {
-      const exists = state.activeOrders.some((o) => (o.id || o._id) === orderId);
+      const exists = state.activeOrders.some((o) => (o.id || o._id)?.toString() === orderId);
       if (exists) {
         return {
-          activeOrders: state.activeOrders.map((o) => ((o.id || o._id) === orderId ? { ...o, ...order } : o)),
+          activeOrders: state.activeOrders.map((o) => ((o.id || o._id)?.toString() === orderId ? { ...o, ...order } : o)),
         };
       }
       // New active order: active queue is sorted oldest-first, so new orders append
@@ -139,13 +140,14 @@ export const useStore = create((set, get) => ({
 
   updateOrderState: (orderId, updates = {}) => {
     if (!orderId) return;
+    const targetId = orderId.toString();
     const fullOrder = updates.order;
     const currentStepKey = (updates.currentStepKey || fullOrder?.currentStepKey || '').toLowerCase();
     const systemState = (updates.systemState || fullOrder?.systemState || '').toUpperCase();
     const isTerminal = currentStepKey === 'completed' || currentStepKey === 'cancelled' || systemState === 'COMPLETED' || systemState === 'CANCELLED';
 
     set((state) => {
-      const existing = state.activeOrders.find((o) => (o.id || o._id) === orderId);
+      const existing = state.activeOrders.find((o) => (o.id || o._id)?.toString() === targetId);
 
       if (isTerminal) {
         const baseOrder = fullOrder || existing;
@@ -156,10 +158,10 @@ export const useStore = create((set, get) => ({
           systemState: systemState || baseOrder.systemState,
           updatedAt: updates.updatedAt || new Date().toISOString(),
         };
-        const nextActive = state.activeOrders.filter((o) => (o.id || o._id) !== orderId);
-        const existsInHistory = state.historyOrders.some((o) => (o.id || o._id) === orderId);
+        const nextActive = state.activeOrders.filter((o) => (o.id || o._id)?.toString() !== targetId);
+        const existsInHistory = state.historyOrders.some((o) => (o.id || o._id)?.toString() === targetId);
         const nextHistory = existsInHistory
-          ? state.historyOrders.map((o) => ((o.id || o._id) === orderId ? { ...o, ...merged } : o))
+          ? state.historyOrders.map((o) => ((o.id || o._id)?.toString() === targetId ? { ...o, ...merged } : o))
           : [merged, ...state.historyOrders];
 
         return {
@@ -179,16 +181,17 @@ export const useStore = create((set, get) => ({
       };
 
       return {
-        activeOrders: state.activeOrders.map((o) => ((o.id || o._id) === orderId ? merged : o)),
+        activeOrders: state.activeOrders.map((o) => ((o.id || o._id)?.toString() === targetId ? merged : o)),
       };
     });
   },
 
   cancelOrderState: (orderId, reason = 'Cancelled by staff override') => {
     if (!orderId) return;
+    const targetId = orderId.toString();
     set((state) => {
-      const existing = state.activeOrders.find((o) => (o.id || o._id) === orderId);
-      const nextActive = state.activeOrders.filter((o) => (o.id || o._id) !== orderId);
+      const existing = state.activeOrders.find((o) => (o.id || o._id)?.toString() === targetId);
+      const nextActive = state.activeOrders.filter((o) => (o.id || o._id)?.toString() !== targetId);
       if (!existing) return { activeOrders: nextActive };
 
       const cancelledOrder = {
@@ -201,9 +204,9 @@ export const useStore = create((set, get) => ({
         },
       };
 
-      const existsInHistory = state.historyOrders.some((o) => (o.id || o._id) === orderId);
+      const existsInHistory = state.historyOrders.some((o) => (o.id || o._id)?.toString() === targetId);
       const nextHistory = existsInHistory
-        ? state.historyOrders.map((o) => ((o.id || o._id) === orderId ? cancelledOrder : o))
+        ? state.historyOrders.map((o) => ((o.id || o._id)?.toString() === targetId ? cancelledOrder : o))
         : [cancelledOrder, ...state.historyOrders];
 
       return {

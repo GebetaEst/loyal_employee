@@ -40,16 +40,16 @@ export default function LoginForm({ employeeId }) {
     e.preventDefault();
     if (!password) { setError('Please enter your password.'); return; }
     if (!employeeId) { setError('No employee ID found. Please scan your QR code.'); return; }
-    console.log(employeeId);
+    // console.log(employeeId);
 
     setError('');
     setLoading(true);
 
     try {
-      console.log('Employee ID:', employeeId);
+      // console.log('Employee ID:', employeeId);
       // 1. Login
       const loginRes = await api.post('/api/restaurants/employee/login', { employeeId, password });
-      console.log('Login response:', loginRes.data);
+      // console.log('Login response:', loginRes.data);
       const { token, employee } = loginRes.data;
       setAuth({ token, employee });
 

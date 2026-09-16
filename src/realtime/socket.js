@@ -27,7 +27,7 @@ export function connectEmployeeSocket(token) {
   if (socket) {
     if (currentToken === token) {
       if (!socket.connected) {
-        console.log('🔌 [Socket.IO] Connecting existing socket client to:', socketBaseUrl);
+        // console.log('🔌 [Socket.IO] Connecting existing socket client to:', socketBaseUrl);
         socket.connect();
       }
       return socket;
@@ -36,14 +36,14 @@ export function connectEmployeeSocket(token) {
     // Token has changed: update auth and reconnect
     currentToken = token;
     socket.auth = { token };
-    console.log('🔄 [Socket.IO] Reconnecting with updated token...');
+    // console.log('🔄 [Socket.IO] Reconnecting with updated token...');
     socket.disconnect().connect();
     return socket;
   }
 
   // Create new singleton socket instance
   currentToken = token;
-  console.log('🔌 [Socket.IO] Initializing socket connection to:', socketBaseUrl);
+  // console.log('🔌 [Socket.IO] Initializing socket connection to:', socketBaseUrl);
 
   socket = io(socketBaseUrl, {
     autoConnect: false,
@@ -61,13 +61,13 @@ export function connectEmployeeSocket(token) {
   socket.onAny((event, ...args) => {
     const time = new Date().toLocaleTimeString();
     const payload = args.length === 1 ? args[0] : args;
-    console.log(
-      `%c⚡ [Socket.IO Triggered]%c ${event} %c@ ${time}`,
-      'background: #2563eb; color: #ffffff; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
-      'color: #0284c7; font-weight: bold;',
-      'color: #64748b; font-size: 11px;',
-      payload
-    );
+    // console.log(
+    //   `%c⚡ [Socket.IO Triggered]%c ${event} %c@ ${time}`,
+    //   'background: #2563eb; color: #ffffff; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
+    //   'color: #0284c7; font-weight: bold;',
+    //   'color: #64748b; font-size: 11px;',
+    //   payload
+    // );
   });
 
   // Global outgoing event listener: logs ANY event emitted from client
@@ -75,35 +75,35 @@ export function connectEmployeeSocket(token) {
     socket.onAnyOutgoing((event, ...args) => {
       const time = new Date().toLocaleTimeString();
       const payload = args.length === 1 ? args[0] : args;
-      console.log(
-        `%c📤 [Socket.IO Emitted]%c ${event} %c@ ${time}`,
-        'background: #7c3aed; color: #ffffff; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
-        'color: #7c3aed; font-weight: bold;',
-        'color: #64748b; font-size: 11px;',
-        payload
-      );
+      // console.log(
+      //   `%c📤 [Socket.IO Emitted]%c ${event} %c@ ${time}`,
+      //   'background: #7c3aed; color: #ffffff; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
+      //   'color: #7c3aed; font-weight: bold;',
+      //   'color: #64748b; font-size: 11px;',
+      //   payload
+      // );
     });
   }
 
   socket.on('connect', () => {
     const transport = socket.io?.engine?.transport?.name || 'websocket';
-    console.log(
-      `%c✅ [Socket.IO Connected]%c ID: ${socket.id} %c(${transport})`,
-      'background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
-      'color: #059669; font-weight: bold;',
-      'color: #64748b; font-size: 11px;'
-    );
+    // console.log(
+    //   `%c✅ [Socket.IO Connected]%c ID: ${socket.id} %c(${transport})`,
+    //   'background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
+    //   'color: #059669; font-weight: bold;',
+    //   'color: #64748b; font-size: 11px;'
+    // );
     useStore.getState().setSocketConnected(true);
     // Connect & reconnect reconciliation: refetch authoritative REST orders
     useStore.getState().bumpOrdersRevision();
   });
 
   socket.on('disconnect', (reason) => {
-    console.log(
-      `%c❌ [Socket.IO Disconnected]%c Reason: ${reason}`,
-      'background: #ef4444; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
-      'color: #dc2626; font-weight: bold;'
-    );
+    // console.log(
+    //   `%c❌ [Socket.IO Disconnected]%c Reason: ${reason}`,
+    //   'background: #ef4444; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
+    //   'color: #dc2626; font-weight: bold;'
+    // );
     useStore.getState().setSocketConnected(false);
   });
 
@@ -120,19 +120,19 @@ export function connectEmployeeSocket(token) {
   // Reconnection lifecycle logging
   if (socket.io) {
     socket.io.on('reconnect_attempt', (attempt) => {
-      console.log(
-        `%c🔄 [Socket.IO Reconnecting]%c Attempt #${attempt}...`,
-        'background: #3b82f6; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
-        'color: #2563eb; font-weight: bold;'
-      );
+      // console.log(
+      //   `%c🔄 [Socket.IO Reconnecting]%c Attempt #${attempt}...`,
+      //   'background: #3b82f6; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
+      //   'color: #2563eb; font-weight: bold;'
+      // );
     });
 
     socket.io.on('reconnect', (attempt) => {
-      console.log(
-        `%c✅ [Socket.IO Reconnected]%c Succeeded after ${attempt} attempt(s)`,
-        'background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
-        'color: #059669; font-weight: bold;'
-      );
+      // console.log(
+      //   `%c✅ [Socket.IO Reconnected]%c Succeeded after ${attempt} attempt(s)`,
+      //   'background: #10b981; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
+      //   'color: #059669; font-weight: bold;'
+      // );
     });
 
     socket.io.on('reconnect_error', (err) => {
@@ -160,7 +160,7 @@ export function connectEmployeeSocket(token) {
         console.warn('⚠️ [Socket.IO DevTools] No active socket instance. Log in first.');
         return;
       }
-      console.log(`🧪 [Socket.IO DevTools] Simulating event trigger: "${eventName}"`, payload);
+      // console.log(`🧪 [Socket.IO DevTools] Simulating event trigger: "${eventName}"`, payload);
       // Dispatch to internal callbacks if registered
       const callbacks = socket._callbacks?.[`$${eventName}`] || [];
       callbacks.forEach((cb) => cb(payload));
@@ -173,11 +173,11 @@ export function connectEmployeeSocket(token) {
 
 export function disconnectEmployeeSocket() {
   if (socket) {
-    console.log(
-      '%c🔌 [Socket.IO]%c Disconnecting socket...',
-      'background: #64748b; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
-      'color: #475569;'
-    );
+    // console.log(
+    //   '%c🔌 [Socket.IO]%c Disconnecting socket...',
+    //   'background: #64748b; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
+    //   'color: #475569;'
+    // );
     socket.disconnect();
     socket.removeAllListeners();
     socket = null;
