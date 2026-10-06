@@ -35,6 +35,8 @@ export default function TableOrdersModal({
   // Compute total ETB bill for this table
   const totalAmount = orders.reduce((sum, o) => sum + Number(o.pricing?.total || 0), 0);
   const currency = orders[0]?.pricing?.currency || 'ETB';
+  const allPaid = orders.length > 0 && orders.every((o) => o.payment?.status === 'paid');
+  const hasUnpaid = orders.some((o) => o.payment?.status !== 'paid');
 
   return (
     <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
@@ -114,6 +116,15 @@ export default function TableOrdersModal({
                 <span className="text-xs font-black text-amber-950">
                   {currency} {totalAmount.toFixed(2)}
                 </span>
+                {allPaid ? (
+                  <span className="text-[9px] font-bold text-emerald-800 bg-emerald-100/90 px-1.5 py-0.5 rounded block mt-0.5 text-center">
+                    ✓ All Paid
+                  </span>
+                ) : hasUnpaid ? (
+                  <span className="text-[9px] font-bold text-amber-900 bg-amber-200/90 px-1.5 py-0.5 rounded block mt-0.5 text-center">
+                    Due
+                  </span>
+                ) : null}
               </div>
             )}
           </div>

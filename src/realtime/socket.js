@@ -15,6 +15,25 @@ export function getEmployeeSocket() {
   return socket;
 }
 
+/**
+ * Emits join_room events for the restaurant and employee
+ */
+export function joinEmployeeRooms(customRestaurantId, customEmployeeId) {
+  if (!socket || !socket.connected) return;
+
+  const state = useStore.getState();
+  const restaurantId = customRestaurantId || state.restaurant?._id || state.restaurant?.id || state.employee?.restaurant;
+  const employeeId = customEmployeeId || state.employee?._id || state.employee?.id || state.employee?.employeeId;
+
+  if (restaurantId) {
+    socket.emit('join_room', { room: `orders:${restaurantId}` });
+  }
+
+  if (employeeId) {
+    socket.emit('join_room', { room: `waiter:${employeeId}` });
+  }
+}
+
 export function connectEmployeeSocket(token) {
   if (!token) {
     disconnectEmployeeSocket();
@@ -27,7 +46,6 @@ export function connectEmployeeSocket(token) {
   if (socket) {
     if (currentToken === token) {
       if (!socket.connected) {
-        // console.log('🔌 [Socket.IO] Connecting existing socket client to:', socketBaseUrl);
         socket.connect();
       }
       return socket;
@@ -36,37 +54,38 @@ export function connectEmployeeSocket(token) {
     // Token has changed: update auth and reconnect
     currentToken = token;
     socket.auth = { token };
-    // console.log('🔄 [Socket.IO] Reconnecting with updated token...');
     socket.disconnect().connect();
     return socket;
   }
 
   // Create new singleton socket instance
   currentToken = token;
-  // console.log('🔌 [Socket.IO] Initializing socket connection to:', socketBaseUrl);
 
   socket = io(socketBaseUrl, {
     autoConnect: false,
     auth: {
       token,
     },
+    transports: ['websocket', 'polling'],
     reconnection: true,
-    reconnectionAttempts: Infinity,
+    reconnectionAttempts: 10,
     reconnectionDelay: 1000,
     reconnectionDelayMax: 10000,
-    transports: ['websocket'], // Direct WebSocket transport, skip polling handshake
   });
 
   // Global event listener
   socket.onAny(() => {});
 
-  // Global outgoing event listener
   if (typeof socket.onAnyOutgoing === 'function') {
     socket.onAnyOutgoing(() => {});
   }
 
   socket.on('connect', () => {
     useStore.getState().setSocketConnected(true);
+
+    // Join required rooms on connection & reconnection
+    joinEmployeeRooms();
+
     // Connect & reconnect reconciliation: refetch authoritative REST orders
     useStore.getState().bumpOrdersRevision();
   });
@@ -89,7 +108,10 @@ export function connectEmployeeSocket(token) {
   if (socket.io) {
     socket.io.on('reconnect_attempt', () => {});
 
-    socket.io.on('reconnect', () => {});
+    socket.io.on('reconnect', () => {
+      // Re-join rooms on reconnect
+      joinEmployeeRooms();
+    });
 
     socket.io.on('reconnect_error', (err) => {
       console.warn(
@@ -116,8 +138,6 @@ export function connectEmployeeSocket(token) {
         console.warn('⚠️ [Socket.IO DevTools] No active socket instance. Log in first.');
         return;
       }
-      // console.log(`🧪 [Socket.IO DevTools] Simulating event trigger: "${eventName}"`, payload);
-      // Dispatch to internal callbacks if registered
       const callbacks = socket._callbacks?.[`$${eventName}`] || [];
       callbacks.forEach((cb) => cb(payload));
     };
@@ -129,11 +149,6 @@ export function connectEmployeeSocket(token) {
 
 export function disconnectEmployeeSocket() {
   if (socket) {
-    // console.log(
-    //   '%c🔌 [Socket.IO]%c Disconnecting socket...',
-    //   'background: #64748b; color: white; padding: 2px 6px; border-radius: 4px; font-weight: bold;',
-    //   'color: #475569;'
-    // );
     socket.disconnect();
     socket.removeAllListeners();
     socket = null;

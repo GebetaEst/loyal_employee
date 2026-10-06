@@ -5,6 +5,7 @@ import OrderCard from '../components/OrderCard';
 import TableCard from '../components/TableCard';
 import TableOrdersModal from '../components/TableOrdersModal';
 import { useStore } from '../store/useStore';
+import { fetchRestaurantOrderHistory } from '../api/paymentService';
 /**
  * Accurately determines if an order belongs to a table, handling IDs (object or string),
  * table codes, and table names with case-insensitive and format-agnostic matching.
@@ -41,6 +42,7 @@ export default function OrdersPage() {
   const loading = useStore((state) => state.ordersLoading);
   const error = useStore((state) => state.ordersError);
   const employee = useStore((state) => state.employee);
+  const restaurant = useStore((state) => state.restaurant);
 
   const tables = useStore((state) => state.tables);
   const tablesLoading = useStore((state) => state.tablesLoading);
@@ -55,11 +57,19 @@ export default function OrdersPage() {
   const [viewMode, setViewMode] = useState('grid'); // 'grid' | 'list'
   const [now, setNow] = useState(0);
 
+  // History tab dedicated state
+  const [activeTab, setActiveTab] = useState('active'); // 'active' | 'history'
+  const [historyPage, setHistoryPage] = useState(1);
+  const [historyFilter, setHistoryFilter] = useState('all'); // 'all' | 'completed' | 'cancelled'
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyPagination, setHistoryPagination] = useState({ total: 0, page: 1, limit: 20, pages: 1 });
+
   const inFlightRef = useRef(false);
   const fetchSeqRef = useRef(0);
   const initialMountRef = useRef(true);
 
   const employeeId = employee?.id || employee?._id;
+  const restaurantId = restaurant?._id || restaurant?.id || employee?.restaurant;
 
   // 60-second timer to update elapsed wait times and colors
   useEffect(() => {
@@ -70,6 +80,23 @@ export default function OrdersPage() {
     return () => clearInterval(timer);
   }, []);
 
+  const fetchHistory = useCallback(async (page = historyPage, status = historyFilter) => {
+    setHistoryLoading(true);
+    try {
+      const res = await fetchRestaurantOrderHistory(restaurantId, {
+        page,
+        limit: 20,
+        status,
+      });
+      setHistoryOrders(res.orders, res.pagination);
+      setHistoryPagination(res.pagination);
+    } catch (err) {
+      console.error('🔥 Error fetching restaurant order history:', err);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }, [restaurantId, historyPage, historyFilter, setHistoryOrders]);
+
   const fetchOrders = useCallback(async (showSkeleton = false) => {
     if (showSkeleton) setOrdersLoading(true);
     setOrdersError('');
@@ -78,20 +105,13 @@ export default function OrdersPage() {
     inFlightRef.current = true;
 
     try {
-      const [activeRes, historyRes] = await Promise.all([
-        api.get('/api/employee/orders', { params: { status: 'active' } }),
-        api.get('/api/employee/orders', { params: { status: 'history' } })
-      ]);
+      const activeRes = await api.get('/api/employee/orders', { params: { status: 'active' } });
 
       // If a newer request has already been issued, ignore this stale response
       if (currentSeq !== fetchSeqRef.current) return;
 
       if (activeRes.data?.success) {
         setActiveOrders(activeRes.data.data?.orders || []);
-      }
-      if (historyRes.data?.success) {
-        // Limit to 25 most recent history items
-        setHistoryOrders((historyRes.data.data?.orders || []).slice(0, 25));
       }
     } catch (err) {
       if (currentSeq !== fetchSeqRef.current) return;
@@ -103,13 +123,14 @@ export default function OrdersPage() {
         setOrdersLoading(false);
       }
     }
-  }, [setActiveOrders, setHistoryOrders, setOrdersLoading, setOrdersError]);
+  }, [setActiveOrders, setOrdersLoading, setOrdersError]);
 
   // Initial fetch on mount - tables only fetched if not already cached
   useEffect(() => {
     fetchOrders(true);
     fetchTables(false);
-  }, [fetchOrders, fetchTables]);
+    fetchHistory(1, 'all');
+  }, [fetchOrders, fetchTables, fetchHistory]);
 
   // React to realtime ordersRevision changes
   useEffect(() => {
@@ -118,21 +139,16 @@ export default function OrdersPage() {
       return;
     }
     if (navigator.onLine) {
-      // console.log(`🔄 [OrdersPage] Realtime revision change detected (ordersRevision: ${ordersRevision}) -> Refetching queue via REST`);
       fetchOrders(false);
     }
   }, [ordersRevision, fetchOrders]);
 
-  // Fallback 30-second polling for reconciliation
+  // Refetch history when history tab or filters change
   useEffect(() => {
-    const interval = setInterval(() => {
-      if (navigator.onLine && !inFlightRef.current) {
-        fetchOrders(false);
-      }
-    }, 30000);
-
-    return () => clearInterval(interval);
-  }, [fetchOrders]);
+    if (activeTab === 'history') {
+      fetchHistory(historyPage, historyFilter);
+    }
+  }, [activeTab, historyPage, historyFilter, fetchHistory]);
 
   // Focus, Visibility Resume, and Online recovery
   useEffect(() => {
@@ -158,19 +174,20 @@ export default function OrdersPage() {
   }, [fetchOrders]);
 
   // Tab state & smooth transitions
-  const [activeTab, setActiveTab] = useState('active'); // 'active' | 'history'
   const [isTransitioning, setIsTransitioning] = useState(false);
   const transitionTimeoutRef = useRef(null);
 
   const switchTab = useCallback((tab) => {
-    if (tab === activeTab) return;
-    setIsTransitioning(true);
-    setActiveTab(tab);
-    if (transitionTimeoutRef.current) clearTimeout(transitionTimeoutRef.current);
-    transitionTimeoutRef.current = setTimeout(() => {
-      setIsTransitioning(false);
-    }, 320);
-  }, [activeTab]);
+    setActiveTab((prev) => {
+      if (tab === prev) return prev;
+      setIsTransitioning(true);
+      if (transitionTimeoutRef.current) clearTimeout(transitionTimeoutRef.current);
+      transitionTimeoutRef.current = setTimeout(() => {
+        setIsTransitioning(false);
+      }, 320);
+      return tab;
+    });
+  }, [setActiveTab]);
 
   useEffect(() => {
     return () => {
@@ -566,7 +583,7 @@ export default function OrdersPage() {
             </div>
 
             {/* ═══════════════════════════════════════════════
-                TAB PANE 2: ORDER HISTORY
+                TAB PANE 2: DEDICATED RESTAURANT ORDER HISTORY
                 ═══════════════════════════════════════════════ */}
             <div
               className={`w-1/2 px-0.5 transition-opacity duration-200 ${
@@ -577,9 +594,42 @@ export default function OrdersPage() {
                   : 'opacity-0 h-0 overflow-hidden'
               }`}
             >
-              {loading ? (
+              {/* History Filter Pills */}
+              <div className="flex items-center justify-between mb-4 px-1">
+                <div className="flex items-center gap-1.5 bg-slate-200/80 p-1 rounded-xl">
+                  {[
+                    { id: 'all', label: 'All Past' },
+                    { id: 'completed', label: 'Completed' },
+                    { id: 'cancelled', label: 'Cancelled' },
+                  ].map((filter) => (
+                    <button
+                      key={filter.id}
+                      type="button"
+                      onClick={() => {
+                        setHistoryFilter(filter.id);
+                        setHistoryPage(1);
+                      }}
+                      className={`px-3 py-1 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                        historyFilter === filter.id
+                          ? 'bg-white text-slate-900 shadow-xs'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {filter.label}
+                    </button>
+                  ))}
+                </div>
+
+                {historyPagination.total > 0 && (
+                  <span className="text-[11px] font-bold text-slate-500">
+                    {historyPagination.total} total
+                  </span>
+                )}
+              </div>
+
+              {historyLoading ? (
                 <div className="flex flex-col gap-4">
-                  {[1, 2].map((i) => (
+                  {[1, 2, 3].map((i) => (
                     <div key={i} className="glass rounded-3xl p-5 border border-slate-200 bg-white flex flex-col gap-4 shadow-sm">
                       <div className="skeleton h-6 w-24" />
                       <div className="skeleton h-4 w-1/3" />
@@ -596,25 +646,52 @@ export default function OrdersPage() {
                     </svg>
                   </div>
                   <div>
-                    <h3 className="text-sm font-bold text-slate-900">No order history yet</h3>
+                    <h3 className="text-sm font-bold text-slate-900">No order history found</h3>
                     <p className="text-xs text-slate-500 mt-1 max-w-xs mx-auto">
-                      Completed and closed orders from your shift will appear here.
+                      {historyFilter !== 'all'
+                        ? `No ${historyFilter} orders match the current filter.`
+                        : 'Settled and completed restaurant tickets will appear here.'}
                     </p>
                   </div>
                 </div>
               ) : (
                 <div className="flex flex-col gap-4">
-                  <div className="flex justify-between items-center px-1">
-                    <h2 className="text-xs font-bold text-slate-500 uppercase tracking-widest">
-                      Completed Shift Orders ({historyOrders.length})
-                    </h2>
-                    <span className="text-[11px] font-semibold text-slate-400">Read-Only</span>
-                  </div>
-                  <div className="flex flex-col gap-4 opacity-90 hover:opacity-100 transition-opacity">
+                  <div className="flex flex-col gap-4 opacity-95 hover:opacity-100 transition-opacity">
                     {historyOrders.map((order) => (
-                      <OrderCard key={order.id || order._id} order={order} onRefresh={() => fetchOrders(false)} />
+                      <OrderCard
+                        key={order.id || order._id}
+                        order={order}
+                        onRefresh={() => fetchHistory(historyPage, historyFilter)}
+                      />
                     ))}
                   </div>
+
+                  {/* Pagination Navigation */}
+                  {historyPagination.pages > 1 && (
+                    <div className="flex items-center justify-between p-3 bg-white border border-slate-200 rounded-2xl shadow-xs mt-2">
+                      <button
+                        type="button"
+                        disabled={historyPage <= 1 || historyLoading}
+                        onClick={() => setHistoryPage((p) => Math.max(1, p - 1))}
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                      >
+                        ← Prev
+                      </button>
+
+                      <span className="text-xs font-bold text-slate-600">
+                        Page {historyPagination.page} of {historyPagination.pages}
+                      </span>
+
+                      <button
+                        type="button"
+                        disabled={historyPage >= historyPagination.pages || historyLoading}
+                        onClick={() => setHistoryPage((p) => Math.min(historyPagination.pages, p + 1))}
+                        className="px-3 py-1.5 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 disabled:opacity-40 disabled:cursor-not-allowed transition-colors cursor-pointer"
+                      >
+                        Next →
+                      </button>
+                    </div>
+                  )}
                 </div>
               )}
             </div>

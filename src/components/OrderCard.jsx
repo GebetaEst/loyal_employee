@@ -2,6 +2,8 @@ import { useEffect, useState } from 'react';
 import toast from 'react-hot-toast';
 import api from '../api/axios';
 import { useStore } from '../store/useStore';
+import PaymentModal from './PaymentModal';
+import ReceiptPreviewModal from './ReceiptPreviewModal';
 
 // Helper to format ETB currency
 function formatCurrency(amount, currency = 'ETB') {
@@ -93,10 +95,12 @@ function getAvailableAction(order, employee) {
 }
 
 export default function OrderCard({ order, onRefresh }) {
-  const { employee } = useStore();
+  const { employee, updateOrderState } = useStore();
   const [elapsed, setElapsed] = useState('');
   const [loading, setLoading] = useState(false);
   const [isOnline, setIsOnline] = useState(navigator.onLine);
+  const [showPaymentModal, setShowPaymentModal] = useState(false);
+  const [showReceiptPreview, setShowReceiptPreview] = useState(false);
 
   // Update connectivity
   useEffect(() => {
@@ -126,6 +130,10 @@ export default function OrderCard({ order, onRefresh }) {
   }, [order.createdAt]);
 
   const availableAction = getAvailableAction(order, employee);
+
+  const isPaid = order.payment?.status === 'paid';
+  const isCancelled = !!order.cancellation || (order.currentStepKey || '').toLowerCase() === 'cancelled' || (order.systemState || '').toUpperCase() === 'CANCELLED';
+  const canSettlePayment = !isPaid && !isCancelled && employee?.role !== 'chef';
 
   const handleAdvance = async () => {
     if (!isOnline) {
@@ -160,6 +168,15 @@ export default function OrderCard({ order, onRefresh }) {
     }
   };
 
+  const handlePaymentSuccess = (updatedOrder) => {
+    const orderId = order.id || order._id;
+    updateOrderState(orderId, {
+      order: updatedOrder,
+      payment: updatedOrder?.payment || { status: 'paid' },
+    });
+    if (onRefresh) onRefresh();
+  };
+
   // Status badges in light mode
   const getStatusBadge = () => {
     const status = order.currentStepKey || 'placed';
@@ -176,101 +193,167 @@ export default function OrderCard({ order, onRefresh }) {
   };
 
   return (
-    <div className="glass rounded-3xl p-5 border border-slate-200 bg-white flex flex-col gap-4 shadow-sm">
-      {/* Top Header Row */}
-      <div className="flex items-start justify-between">
-        <div>
-          <span className="text-[11px] font-bold text-slate-400 tracking-wider uppercase block">Order</span>
-          <span className="text-lg font-black text-slate-900">#{order.orderNumber}</span>
+    <>
+      <div className="glass rounded-3xl p-5 border border-slate-200 bg-white flex flex-col gap-4 shadow-sm">
+        {/* Top Header Row */}
+        <div className="flex items-start justify-between">
+          <div>
+            <span className="text-[11px] font-bold text-slate-400 tracking-wider uppercase block">Order</span>
+            <span className="text-lg font-black text-slate-900">#{order.orderNumber}</span>
+          </div>
+          <div className="text-right">
+            <span className="text-[11px] font-bold text-slate-400 tracking-wider uppercase block">Table</span>
+            <span className="text-base font-bold text-slate-900">{order.table?.name || 'N/A'}</span>
+          </div>
+          <div className="text-right flex flex-col items-end">
+            <span className="text-[11px] font-bold text-slate-400 tracking-wider uppercase block">Elapsed</span>
+            <span className="text-xs font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md mt-0.5">{elapsed || '0 min'}</span>
+          </div>
         </div>
-        <div className="text-right">
-          <span className="text-[11px] font-bold text-slate-400 tracking-wider uppercase block">Table</span>
-          <span className="text-base font-bold text-slate-900">{order.table?.name || 'N/A'}</span>
-        </div>
-        <div className="text-right flex flex-col items-end">
-          <span className="text-[11px] font-bold text-slate-400 tracking-wider uppercase block">Elapsed</span>
-          <span className="text-xs font-semibold text-slate-600 bg-slate-100 border border-slate-200 px-2 py-0.5 rounded-md mt-0.5">{elapsed || '0 min'}</span>
-        </div>
-      </div>
 
-      {/* Status indicator */}
-      <div className="flex items-center gap-2">
-        {getStatusBadge()}
-        {order.cancellation && (
-          <span className="px-2.5 py-1 text-xs font-bold rounded-lg bg-red-50 text-red-700 border border-red-200">Cancelled</span>
-        )}
-      </div>
+        {/* Status indicator row: Order Workflow Step + Payment Status */}
+        <div className="flex flex-wrap items-center gap-2">
+          {getStatusBadge()}
 
-      {/* Items Section */}
-      <div className="border-t border-slate-100 pt-3">
-        <ul className="flex flex-col gap-2.5">
-          {order.items?.map((item, idx) => (
-            <li key={idx} className="text-sm">
-              <div className="flex justify-between items-start">
-                <span className="text-slate-800 font-medium">
-                  <strong className="font-black" style={{ color: 'var(--brand-primary)' }}>{item.quantity} ×</strong> {item.name}
-                </span>
-                {employee?.role !== 'chef' && (
-                  <span className="text-xs font-semibold text-slate-500">{formatCurrency(item.lineTotal || (item.quantity * item.unitPrice), order.pricing?.currency)}</span>
+          {/* Payment Status Badge */}
+          {isPaid ? (
+            <div className="flex items-center gap-1.5">
+              <span className="px-2.5 py-1 text-xs font-black rounded-lg bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-1">
+                <span>✓ Paid</span>
+                {order.payment?.method && (
+                  <span className="font-semibold text-emerald-700">
+                    ({order.payment.method.toLowerCase() === 'cbe' ? 'CBE' : (order.payment.method.charAt(0).toUpperCase() + order.payment.method.slice(1))})
+                  </span>
                 )}
-              </div>
-              {item.notes && (
-                <div className="text-xs text-amber-900 font-medium bg-amber-50 border border-amber-200 rounded-md px-2 py-1 mt-1">
-                  Item Note: {item.notes}
-                </div>
+              </span>
+              {order.payment?.proofUrl && (
+                <button
+                  type="button"
+                  onClick={() => setShowReceiptPreview(true)}
+                  className="px-2 py-1 text-[11px] font-bold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center gap-1 transition-colors cursor-pointer"
+                  title="View Cloudinary receipt proof"
+                >
+                  <span>🧾</span>
+                  <span>Proof</span>
+                </button>
               )}
-            </li>
-          ))}
-        </ul>
-      </div>
+            </div>
+          ) : !isCancelled ? (
+            <span className="px-2.5 py-1 text-xs font-bold rounded-lg bg-amber-50 text-amber-800 border border-amber-200">
+              Unpaid
+            </span>
+          ) : null}
 
-      {/* Order Notes / Special Request */}
-      {order.customerNotes && (
-        <div className="rounded-xl px-3 py-2.5 bg-amber-50 border border-amber-200 flex flex-col gap-1">
-          <span className="text-[10px] font-black text-amber-800 uppercase tracking-widest">Special Request</span>
-          <p className="text-xs text-amber-900 font-semibold leading-relaxed">{order.customerNotes}</p>
-        </div>
-      )}
-
-      {/* Waiter Details & Total Row */}
-      <div className="border-t border-slate-100 pt-3 flex items-center justify-between text-xs text-slate-500">
-        <span>
-          Waiter: <strong className="text-slate-800">{order.service?.waiter?.name || 'Auto Assigned'}</strong>
-        </span>
-        {employee?.role !== 'chef' && order.pricing && (
-          <span className="text-sm font-black text-slate-900">
-            Total: {formatCurrency(order.pricing.total, order.pricing.currency)}
-          </span>
-        )}
-      </div>
-
-      {/* Dynamic Action Button */}
-      {availableAction && !order.cancellation && (
-        <button
-          onClick={handleAdvance}
-          disabled={loading || !isOnline}
-          className="btn-primary w-full mt-1 flex items-center justify-center gap-2"
-          style={{
-            height: '46px',
-            borderRadius: '14px',
-            background: loading ? '#e2e8f0' : 'var(--brand-primary)',
-            color: loading ? '#64748b' : 'var(--brand-primary-text)',
-            border: 'none'
-          }}
-        >
-          {loading ? (
-            <>
-              <svg className="animate-spin-slow h-4 w-4 text-slate-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
-                <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
-                <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
-              </svg>
-              Updating order...
-            </>
-          ) : (
-            availableAction.label
+          {order.cancellation && (
+            <span className="px-2.5 py-1 text-xs font-bold rounded-lg bg-red-50 text-red-700 border border-red-200">Cancelled</span>
           )}
-        </button>
+        </div>
+
+        {/* Items Section */}
+        <div className="border-t border-slate-100 pt-3">
+          <ul className="flex flex-col gap-2.5">
+            {order.items?.map((item, idx) => (
+              <li key={idx} className="text-sm">
+                <div className="flex justify-between items-start">
+                  <span className="text-slate-800 font-medium">
+                    <strong className="font-black" style={{ color: 'var(--brand-primary)' }}>{item.quantity} ×</strong> {item.name}
+                  </span>
+                  {employee?.role !== 'chef' && (
+                    <span className="text-xs font-semibold text-slate-500">{formatCurrency(item.lineTotal || (item.quantity * item.unitPrice), order.pricing?.currency)}</span>
+                  )}
+                </div>
+                {item.notes && (
+                  <div className="text-xs text-amber-900 font-medium bg-amber-50 border border-amber-200 rounded-md px-2 py-1 mt-1">
+                    Item Note: {item.notes}
+                  </div>
+                )}
+              </li>
+            ))}
+          </ul>
+        </div>
+
+        {/* Order Notes / Special Request */}
+        {order.customerNotes && (
+          <div className="rounded-xl px-3 py-2.5 bg-amber-50 border border-amber-200 flex flex-col gap-1">
+            <span className="text-[10px] font-black text-amber-800 uppercase tracking-widest">Special Request</span>
+            <p className="text-xs text-amber-900 font-semibold leading-relaxed">{order.customerNotes}</p>
+          </div>
+        )}
+
+        {/* Waiter Details & Total Row */}
+        <div className="border-t border-slate-100 pt-3 flex items-center justify-between text-xs text-slate-500">
+          <span>
+            Waiter: <strong className="text-slate-800">{order.service?.waiter?.name || 'Auto Assigned'}</strong>
+          </span>
+          {employee?.role !== 'chef' && order.pricing && (
+            <span className="text-sm font-black text-slate-900">
+              Total: {formatCurrency(order.pricing.total, order.pricing.currency)}
+            </span>
+          )}
+        </div>
+
+        {/* Action Controls Section */}
+        <div className="flex flex-col gap-2 mt-1">
+          {/* Collect Payment Button (when unpaid and authorized) */}
+          {canSettlePayment && (
+            <button
+              type="button"
+              onClick={() => setShowPaymentModal(true)}
+              disabled={!isOnline}
+              className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer"
+            >
+              <span>💳</span>
+              <span>Collect Payment ({formatCurrency(order.pricing?.total, order.pricing?.currency)})</span>
+            </button>
+          )}
+
+          {/* Dynamic Workflow Advance Button */}
+          {availableAction && !order.cancellation && (
+            <button
+              onClick={handleAdvance}
+              disabled={loading || !isOnline}
+              className="btn-primary w-full flex items-center justify-center gap-2"
+              style={{
+                height: '46px',
+                borderRadius: '14px',
+                background: loading ? '#e2e8f0' : 'var(--brand-primary)',
+                color: loading ? '#64748b' : 'var(--brand-primary-text)',
+                border: 'none'
+              }}
+            >
+              {loading ? (
+                <>
+                  <svg className="animate-spin-slow h-4 w-4 text-slate-500" xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24">
+                    <circle className="opacity-25" cx="12" cy="12" r="10" stroke="currentColor" strokeWidth="4" />
+                    <path className="opacity-75" fill="currentColor" d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z" />
+                  </svg>
+                  Updating order...
+                </>
+              ) : (
+                availableAction.label
+              )}
+            </button>
+          )}
+        </div>
+      </div>
+
+      {/* Payment Settlement Modal */}
+      {showPaymentModal && (
+        <PaymentModal
+          order={order}
+          onClose={() => setShowPaymentModal(false)}
+          onSuccess={handlePaymentSuccess}
+        />
       )}
-    </div>
+
+      {/* Receipt Proof Preview Lightbox Modal */}
+      {showReceiptPreview && order.payment?.proofUrl && (
+        <ReceiptPreviewModal
+          url={order.payment.proofUrl}
+          orderNumber={order.orderNumber}
+          onClose={() => setShowReceiptPreview(false)}
+        />
+      )}
+    </>
   );
 }

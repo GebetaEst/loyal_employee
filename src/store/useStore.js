@@ -97,6 +97,7 @@ export const useStore = create((set, get) => ({
   // ─── Orders State ───
   activeOrders: [],
   historyOrders: [],
+  historyPagination: { total: 0, page: 1, limit: 20, pages: 1 },
   ordersLoading: true,
   ordersError: '',
 
@@ -122,8 +123,11 @@ export const useStore = create((set, get) => ({
   setActiveOrders: (activeOrders) =>
     set({ activeOrders, ordersLoading: false, ordersError: '' }),
 
-  setHistoryOrders: (historyOrders) =>
-    set({ historyOrders }),
+  setHistoryOrders: (historyOrders, historyPagination = null) =>
+    set((state) => ({
+      historyOrders,
+      historyPagination: historyPagination || state.historyPagination,
+    })),
 
   setOrdersLoading: (ordersLoading) =>
     set({ ordersLoading }),
@@ -194,7 +198,7 @@ export const useStore = create((set, get) => ({
           : [order, ...state.historyOrders];
         return {
           activeOrders: filteredActive,
-          historyOrders: nextHistory.slice(0, 25),
+          historyOrders: nextHistory.slice(0, 50),
         };
       });
       return;
@@ -215,12 +219,20 @@ export const useStore = create((set, get) => ({
       const exists = state.activeOrders.some((o) => (o.id || o._id)?.toString() === orderId);
       if (exists) {
         return {
-          activeOrders: state.activeOrders.map((o) => ((o.id || o._id)?.toString() === orderId ? { ...o, ...order } : o)),
+          activeOrders: state.activeOrders.map((o) =>
+            (o.id || o._id)?.toString() === orderId
+              ? {
+                  ...o,
+                  ...order,
+                  payment: order.payment || o.payment,
+                }
+              : o
+          ),
         };
       }
-      // New active order: active queue is sorted oldest-first, so new orders append
+      // Prepend new order card to the active queue (realtime event contract)
       return {
-        activeOrders: [...state.activeOrders, order],
+        activeOrders: [order, ...state.activeOrders],
       };
     });
   },
@@ -241,6 +253,7 @@ export const useStore = create((set, get) => ({
         if (!baseOrder) return state;
         const merged = {
           ...baseOrder,
+          payment: updates.payment || fullOrder?.payment || baseOrder.payment,
           currentStepKey: currentStepKey || baseOrder.currentStepKey,
           systemState: systemState || baseOrder.systemState,
           updatedAt: updates.updatedAt || new Date().toISOString(),
@@ -253,7 +266,7 @@ export const useStore = create((set, get) => ({
 
         return {
           activeOrders: nextActive,
-          historyOrders: nextHistory.slice(0, 25),
+          historyOrders: nextHistory.slice(0, 50),
         };
       }
 
@@ -262,6 +275,7 @@ export const useStore = create((set, get) => ({
       const merged = {
         ...(existing || {}),
         ...(fullOrder || {}),
+        payment: updates.payment || fullOrder?.payment || existing?.payment,
         currentStepKey: currentStepKey || existing?.currentStepKey,
         systemState: systemState || existing?.systemState,
         updatedAt: updates.updatedAt || new Date().toISOString(),
