@@ -1,5 +1,8 @@
-import { useEffect } from 'react';
+import { useEffect, useState, useCallback } from 'react';
+import { createPortal } from 'react-dom';
 import OrderCard from './OrderCard';
+import PaymentModal from './PaymentModal';
+import ReceiptPreviewModal from './ReceiptPreviewModal';
 import { getUrgencyConfig, computeTableElapsedMinutes } from '../lib/orderUrgency';
 
 export default function TableOrdersModal({
@@ -9,16 +12,56 @@ export default function TableOrdersModal({
   onClose,
   onRefreshOrders
 }) {
+  const [paymentOrder, setPaymentOrder] = useState(null);
+  const [receiptProof, setReceiptProof] = useState(null);
+  const [isClosing, setIsClosing] = useState(false);
+
+  // Smooth animated exit handler
+  const handleClose = useCallback(() => {
+    if (isClosing) return;
+    setIsClosing(true);
+    setTimeout(() => {
+      onClose();
+    }, 220);
+  }, [isClosing, onClose]);
+
   // Close on Escape key press
   useEffect(() => {
     const handleKeyDown = (e) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape' && !paymentOrder && !receiptProof) {
+        handleClose();
+      }
     };
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [onClose]);
+  }, [handleClose, paymentOrder, receiptProof]);
 
   if (!table) return null;
+
+  // When an order is being settled, render PaymentModal directly without the outer table card
+  if (paymentOrder) {
+    return (
+      <PaymentModal
+        order={paymentOrder}
+        onClose={() => setPaymentOrder(null)}
+        onSuccess={() => {
+          setPaymentOrder(null);
+          if (onRefreshOrders) onRefreshOrders();
+        }}
+      />
+    );
+  }
+
+  // When a receipt is being previewed, render ReceiptPreviewModal directly
+  if (receiptProof) {
+    return (
+      <ReceiptPreviewModal
+        url={receiptProof.url}
+        orderNumber={receiptProof.orderNumber}
+        onClose={() => setReceiptProof(null)}
+      />
+    );
+  }
 
   const unservedOrders = orders.filter((o) => {
     const step = (o.currentStepKey || '').toLowerCase();
@@ -38,13 +81,23 @@ export default function TableOrdersModal({
   const allPaid = orders.length > 0 && orders.every((o) => o.payment?.status === 'paid');
   const hasUnpaid = orders.some((o) => o.payment?.status !== 'paid');
 
-  return (
-    <div className="fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs animate-fade-in">
+  const modalContent = (
+    <div
+      className={`fixed inset-0 z-50 flex items-end sm:items-center justify-center p-0 sm:p-4 bg-slate-900/60 backdrop-blur-xs transition-opacity duration-200 ${
+        isClosing ? 'animate-fade-out opacity-0 pointer-events-none' : 'animate-fade-in'
+      }`}
+    >
       {/* Backdrop Click Dismiss */}
-      <div className="absolute inset-0" onClick={onClose} />
+      <div className="absolute inset-0" onClick={handleClose} />
 
       {/* Modal / Bottom Sheet Box */}
-      <div className="relative w-full max-w-lg max-h-[90vh] sm:max-h-[85vh] bg-slate-50 sm:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col z-10 overflow-hidden border border-slate-200 animate-fade-in-up">
+      <div
+        className={`relative w-full max-w-lg max-h-[90vh] sm:max-h-[85vh] bg-slate-50 sm:rounded-3xl rounded-t-3xl shadow-2xl flex flex-col z-10 overflow-hidden sm:border sm:border-slate-200 ${
+          isClosing
+            ? 'animate-slide-down-out sm:animate-pop-out'
+            : 'animate-slide-up-in sm:animate-pop-in'
+        }`}
+      >
         {/* Modal Header */}
         <div className="bg-white px-5 py-4 border-b border-slate-200 flex items-center justify-between shrink-0">
           <div className="flex items-center gap-3">
@@ -84,7 +137,7 @@ export default function TableOrdersModal({
           {/* Close Button */}
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 text-slate-500 hover:text-slate-800 flex items-center justify-center transition-colors cursor-pointer"
             aria-label="Close"
           >
@@ -166,6 +219,8 @@ export default function TableOrdersModal({
                         key={order.id || order._id}
                         order={order}
                         onRefresh={onRefreshOrders}
+                        onCollectPayment={(ord) => setPaymentOrder(ord)}
+                        onViewReceipt={(receipt) => setReceiptProof(receipt)}
                       />
                     ))}
                   </div>
@@ -192,6 +247,8 @@ export default function TableOrdersModal({
                         key={order.id || order._id}
                         order={order}
                         onRefresh={onRefreshOrders}
+                        onCollectPayment={(ord) => setPaymentOrder(ord)}
+                        onViewReceipt={(receipt) => setReceiptProof(receipt)}
                       />
                     ))}
                   </div>
@@ -208,7 +265,7 @@ export default function TableOrdersModal({
           </span>
           <button
             type="button"
-            onClick={onClose}
+            onClick={handleClose}
             className="px-5 py-2 rounded-xl text-xs font-bold text-slate-700 bg-slate-100 hover:bg-slate-200 transition-colors cursor-pointer"
           >
             Back to Tables
@@ -217,4 +274,7 @@ export default function TableOrdersModal({
       </div>
     </div>
   );
+
+  if (typeof document === 'undefined') return null;
+  return createPortal(modalContent, document.body);
 }

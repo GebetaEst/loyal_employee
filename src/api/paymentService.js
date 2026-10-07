@@ -2,10 +2,25 @@ import api from './axios';
 import { convertBrowserFileToWebP, validateReceiptImage } from '../lib/imageOptimization';
 
 export const PAYMENT_METHODS = [
-  { id: 'cash', label: 'Cash', icon: '💵', description: 'Physical cash at table or counter' },
-  { id: 'telebirr', label: 'Telebirr', icon: '📱', description: 'Telebirr mobile transfer / USSD' },
-  { id: 'cbe', label: 'CBE', fullName: 'Commercial Bank of Ethiopia', icon: '🏦', description: 'Commercial Bank of Ethiopia' },
-  { id: 'other', label: 'Other', icon: '🧾', description: 'Other bank transfer or custom methods' },
+  { id: 'cash', label: 'Cash', icon: '💵', description: 'Physical cash at table or counter', shortDesc: 'Cash at table' },
+  {
+    id: 'telebirr',
+    label: 'Telebirr',
+    icon: '📱',
+    iconUrl: 'https://res.cloudinary.com/q1ci20uo/image/upload/v1791359902/telebirr.webp',
+    description: 'Telebirr mobile transfer / USSD',
+    shortDesc: 'Mobile / USSD',
+  },
+  {
+    id: 'cbe',
+    label: 'CBE',
+    fullName: 'Commercial Bank of Ethiopia',
+    icon: '🏦',
+    iconUrl: 'https://res.cloudinary.com/q1ci20uo/image/upload/v1791359902/CBE.webp',
+    description: 'Commercial Bank of Ethiopia',
+    shortDesc: 'CBE Birr / Mobile',
+  },
+  { id: 'other', label: 'Other', icon: '🧾', description: 'Other bank transfer or custom methods', shortDesc: 'Bank / Other' },
 ];
 
 /**

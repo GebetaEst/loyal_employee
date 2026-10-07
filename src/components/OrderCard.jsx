@@ -94,7 +94,7 @@ function getAvailableAction(order, employee) {
   return null;
 }
 
-export default function OrderCard({ order, onRefresh }) {
+export default function OrderCard({ order, onRefresh, onCollectPayment, onViewReceipt }) {
   const { employee, updateOrderState } = useStore();
   const [elapsed, setElapsed] = useState('');
   const [loading, setLoading] = useState(false);
@@ -229,7 +229,13 @@ export default function OrderCard({ order, onRefresh }) {
               {order.payment?.proofUrl && (
                 <button
                   type="button"
-                  onClick={() => setShowReceiptPreview(true)}
+                  onClick={() => {
+                    if (onViewReceipt && order.payment?.proofUrl) {
+                      onViewReceipt({ url: order.payment.proofUrl, orderNumber: order.orderNumber });
+                    } else {
+                      setShowReceiptPreview(true);
+                    }
+                  }}
                   className="px-2 py-1 text-[11px] font-bold rounded-lg bg-slate-100 hover:bg-slate-200 text-slate-700 border border-slate-200 flex items-center gap-1 transition-colors cursor-pointer"
                   title="View Cloudinary receipt proof"
                 >
@@ -298,7 +304,13 @@ export default function OrderCard({ order, onRefresh }) {
           {canSettlePayment && (
             <button
               type="button"
-              onClick={() => setShowPaymentModal(true)}
+              onClick={() => {
+                if (onCollectPayment) {
+                  onCollectPayment(order);
+                } else {
+                  setShowPaymentModal(true);
+                }
+              }}
               disabled={!isOnline}
               className="w-full flex items-center justify-center gap-2 py-2.5 px-4 rounded-xl text-xs font-black bg-emerald-600 hover:bg-emerald-700 text-white shadow-xs transition-colors cursor-pointer"
             >

@@ -73,11 +73,49 @@ body {
   }
 }
 
-.animate-fade-in-up { animation: fadeInUp 0.4s ease both; }
-.animate-fade-in    { animation: fadeIn 0.25s ease both; }
-.animate-scan-pulse { animation: scanPulse 2.5s ease-in-out infinite; }
-.animate-spin-slow  { animation: spin 1s linear infinite; }
-.animate-table-pulse { animation: tableGlowPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+/* Enter and Exit Transitions for Modals and Cards */
+@keyframes slideUpIn {
+  from { opacity: 0; transform: translateY(100%); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+@keyframes slideDownOut {
+  from { opacity: 1; transform: translateY(0); }
+  to   { opacity: 0; transform: translateY(100%); }
+}
+@keyframes fadeOut {
+  from { opacity: 1; }
+  to   { opacity: 0; }
+}
+@keyframes cardPopIn {
+  from { opacity: 0; transform: scale(0.94); }
+  to   { opacity: 1; transform: scale(1); }
+}
+@keyframes cardPopOut {
+  from { opacity: 1; transform: scale(1); }
+  to   { opacity: 0; transform: scale(0.94); }
+}
+
+@utility animate-fade-in-up { animation: fadeInUp 0.3s ease both; }
+@utility animate-fade-in    { animation: fadeIn 0.22s ease both; }
+@utility animate-fade-out   { animation: fadeOut 0.2s ease both; }
+@utility animate-slide-up-in { animation: slideUpIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@utility animate-slide-down-out { animation: slideDownOut 0.22s cubic-bezier(0.7, 0, 0.84, 0) both; }
+@utility animate-pop-in     { animation: cardPopIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) both; }
+@utility animate-pop-out    { animation: cardPopOut 0.2s cubic-bezier(0.7, 0, 0.84, 0) both; }
+@utility animate-scan-pulse { animation: scanPulse 2.5s ease-in-out infinite; }
+@utility animate-spin-slow  { animation: spin 1s linear infinite; }
+@utility animate-table-pulse { animation: tableGlowPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
+
+.animate-fade-in-up     { animation: fadeInUp 0.3s ease both; }
+.animate-fade-in        { animation: fadeIn 0.22s ease both; }
+.animate-fade-out       { animation: fadeOut 0.2s ease both; }
+.animate-slide-up-in    { animation: slideUpIn 0.28s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-slide-down-out  { animation: slideDownOut 0.22s cubic-bezier(0.7, 0, 0.84, 0) both; }
+.animate-pop-in         { animation: cardPopIn 0.24s cubic-bezier(0.16, 1, 0.3, 1) both; }
+.animate-pop-out        { animation: cardPopOut 0.2s cubic-bezier(0.7, 0, 0.84, 0) both; }
+.animate-scan-pulse     { animation: scanPulse 2.5s ease-in-out infinite; }
+.animate-spin-slow      { animation: spin 1s linear infinite; }
+.animate-table-pulse    { animation: tableGlowPulse 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
 
 /* Light skeleton loading */
 .skeleton {
