@@ -3,4 +3,6 @@ export const REALTIME_EVENTS = {
   ORDER_UPDATED: 'order:updated',
   ORDER_CANCELLED: 'order:cancelled',
   ORDERS_INVALIDATE: 'orders:invalidate',
+  CHECK_PAYMENT_UPDATED: 'check:payment-updated',
+  CHECKS_INVALIDATE: 'checks:invalidate',
 };

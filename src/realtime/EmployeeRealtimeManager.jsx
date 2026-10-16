@@ -13,17 +13,29 @@ export default function EmployeeRealtimeManager() {
   const restaurant = useStore((state) => state.restaurant);
 
   const seenEventIdsRef = useRef(new Set());
-  const debounceTimerRef = useRef(null);
+  const ordersDebounceTimerRef = useRef(null);
+  const checksDebounceTimerRef = useRef(null);
 
-  // Debounced invalidation scheduler (batches events within 300ms into a single revision bump)
+  // Debounced orders invalidation scheduler (batches events within 300ms)
   const scheduleOrdersRefresh = useCallback(() => {
-    if (debounceTimerRef.current) {
+    if (ordersDebounceTimerRef.current) {
       return;
     }
-    debounceTimerRef.current = setTimeout(() => {
-      debounceTimerRef.current = null;
+    ordersDebounceTimerRef.current = setTimeout(() => {
+      ordersDebounceTimerRef.current = null;
       useStore.getState().bumpOrdersRevision();
     }, 300);
+  }, []);
+
+  // Debounced checks invalidation scheduler (batches events within 250ms)
+  const scheduleChecksRefresh = useCallback(() => {
+    if (checksDebounceTimerRef.current) {
+      return;
+    }
+    checksDebounceTimerRef.current = setTimeout(() => {
+      checksDebounceTimerRef.current = null;
+      useStore.getState().bumpChecksRevision();
+    }, 250);
   }, []);
 
   // Event ID deduplicator: returns true if already seen
@@ -90,8 +102,11 @@ export default function EmployeeRealtimeManager() {
         }
       }
 
-      // 4. Schedule debounced background sync as secondary safety net
+      // 4. Schedule debounced background sync as secondary safety net for orders
       scheduleOrdersRefresh();
+
+      // 5. Customer may have added another order to existing check: refresh checks as well
+      scheduleChecksRefresh();
     };
 
     // Handle order:updated
@@ -99,7 +114,6 @@ export default function EmployeeRealtimeManager() {
       const order = payload?.data?.order || payload?.order || (payload?.id || payload?._id ? payload : null);
       const orderId = payload?.data?.orderId || payload?.orderId || order?.id || order?._id;
       const currentStep = payload?.data?.currentStepKey || payload?.currentStepKey || order?.currentStepKey || order?.status;
-      const payment = payload?.data?.payment || payload?.payment || order?.payment;
 
       if (!orderId) {
         scheduleOrdersRefresh();
@@ -113,18 +127,10 @@ export default function EmployeeRealtimeManager() {
       // 1. Direct state update
       useStore.getState().updateOrderState(orderId, {
         order,
-        payment,
         currentStepKey: currentStep,
         systemState: payload?.data?.systemState || payload?.systemState || order?.systemState,
         updatedAt: payload?.data?.updatedAt || payload?.updatedAt || order?.updatedAt,
       });
-
-      // Notify if payment was completed
-      if (payment?.status === 'paid') {
-        const orderNum = order?.orderNumber || payload?.orderNumber || payload?.data?.orderNumber;
-        const msg = orderNum ? `Order #${orderNum} payment marked as paid!` : 'Order payment marked as paid!';
-        toast.success(msg, { id: `order-paid-${orderId}` });
-      }
 
       // 2. Schedule debounced background sync
       scheduleOrdersRefresh();
@@ -150,6 +156,7 @@ export default function EmployeeRealtimeManager() {
 
       // 2. Schedule debounced background sync
       scheduleOrdersRefresh();
+      scheduleChecksRefresh();
 
       if (orderNum) {
         toast(`Order #${orderNum} was cancelled.`, { icon: 'ℹ️', id: `order-cancel-${orderId}` });
@@ -171,24 +178,65 @@ export default function EmployeeRealtimeManager() {
       scheduleOrdersRefresh();
     };
 
+    // Handle check:payment-updated
+    const handleCheckPaymentUpdated = (payload = {}) => {
+      if (isDuplicateEvent(payload?.eventId)) {
+        return;
+      }
+
+      const checkData = payload?.data || {};
+      const checkId = checkData.checkId;
+      const isPaid = checkData.isPaid;
+      const method = checkData.method;
+      const total = checkData.total;
+      const currency = checkData.currency || 'ETB';
+
+      if (isPaid && (employee?.role === 'waiter' || employee?.role === 'cashier')) {
+        const formattedMethod = method
+          ? (method.toLowerCase() === 'cbe' ? 'CBE' : (method.charAt(0).toUpperCase() + method.slice(1)))
+          : '';
+        const msg = total
+          ? `Bill paid: ${currency} ${Number(total).toFixed(2)}${formattedMethod ? ` (${formattedMethod})` : ''}`
+          : 'Bill payment recorded!';
+        toast.success(msg, { id: `check-paid-${checkId || Date.now()}` });
+      }
+
+      scheduleChecksRefresh();
+    };
+
+    // Handle checks:invalidate
+    const handleChecksInvalidate = (payload = {}) => {
+      if (isDuplicateEvent(payload?.eventId)) {
+        return;
+      }
+      scheduleChecksRefresh();
+    };
+
     socket.on(REALTIME_EVENTS.ORDER_CREATED, handleOrderCreated);
     socket.on(REALTIME_EVENTS.ORDER_UPDATED, handleOrderUpdated);
     socket.on(REALTIME_EVENTS.ORDER_CANCELLED, handleOrderCancelled);
     socket.on(REALTIME_EVENTS.ORDERS_INVALIDATE, handleOrdersInvalidate);
+    socket.on(REALTIME_EVENTS.CHECK_PAYMENT_UPDATED, handleCheckPaymentUpdated);
+    socket.on(REALTIME_EVENTS.CHECKS_INVALIDATE, handleChecksInvalidate);
 
     return () => {
       socket.off(REALTIME_EVENTS.ORDER_CREATED, handleOrderCreated);
       socket.off(REALTIME_EVENTS.ORDER_UPDATED, handleOrderUpdated);
       socket.off(REALTIME_EVENTS.ORDER_CANCELLED, handleOrderCancelled);
       socket.off(REALTIME_EVENTS.ORDERS_INVALIDATE, handleOrdersInvalidate);
+      socket.off(REALTIME_EVENTS.CHECK_PAYMENT_UPDATED, handleCheckPaymentUpdated);
+      socket.off(REALTIME_EVENTS.CHECKS_INVALIDATE, handleChecksInvalidate);
     };
-  }, [token, employee, isDuplicateEvent, scheduleOrdersRefresh]);
+  }, [token, employee, isDuplicateEvent, scheduleOrdersRefresh, scheduleChecksRefresh]);
 
-  // Clean up timer on unmount
+  // Clean up timers on unmount
   useEffect(() => {
     return () => {
-      if (debounceTimerRef.current) {
-        clearTimeout(debounceTimerRef.current);
+      if (ordersDebounceTimerRef.current) {
+        clearTimeout(ordersDebounceTimerRef.current);
+      }
+      if (checksDebounceTimerRef.current) {
+        clearTimeout(checksDebounceTimerRef.current);
       }
     };
   }, []);

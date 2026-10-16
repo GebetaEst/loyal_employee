@@ -60,7 +60,21 @@ export default defineConfig({
       },
       workbox: {
         globPatterns: ['**/*.{js,css,html,ico,png,svg,woff2}'],
-        navigateFallbackDenylist: [/^\/socket\.io/],
+        navigateFallbackDenylist: [/^\/socket\.io/, /^\/api/],
+        runtimeCaching: [
+          {
+            urlPattern: /^https?:\/\/[^/]+\/api\/employee\/dining-checks/,
+            handler: 'NetworkOnly',
+          },
+          {
+            urlPattern: /\/api\/employee\/dining-checks/,
+            handler: 'NetworkOnly',
+          },
+          {
+            urlPattern: /\/socket\.io/,
+            handler: 'NetworkOnly',
+          },
+        ],
       },
     }),
   ],

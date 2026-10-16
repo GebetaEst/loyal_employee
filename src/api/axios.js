@@ -1,7 +1,9 @@
 import axios from 'axios';
 import { useStore } from '../store/useStore';
 
-const BASE_URL = import.meta.env.VITE_API_BASE_URL || '';
+const rawBaseUrl = import.meta.env.VITE_API_BASE_URL || '';
+// Strip trailing '/api' or '/' because all service endpoints across the app start with '/api/'
+const BASE_URL = rawBaseUrl.replace(/\/api\/?$/, '').replace(/\/$/, '');
 
 const api = axios.create({
   baseURL: BASE_URL,

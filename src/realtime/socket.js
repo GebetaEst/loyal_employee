@@ -86,8 +86,9 @@ export function connectEmployeeSocket(token) {
     // Join required rooms on connection & reconnection
     joinEmployeeRooms();
 
-    // Connect & reconnect reconciliation: refetch authoritative REST orders
+    // Connect & reconnect reconciliation: refetch authoritative REST orders and checks
     useStore.getState().bumpOrdersRevision();
+    useStore.getState().bumpChecksRevision();
   });
 
   socket.on('disconnect', () => {
@@ -109,8 +110,10 @@ export function connectEmployeeSocket(token) {
     socket.io.on('reconnect_attempt', () => {});
 
     socket.io.on('reconnect', () => {
-      // Re-join rooms on reconnect
+      // Re-join rooms on reconnect and reconcile
       joinEmployeeRooms();
+      useStore.getState().bumpOrdersRevision();
+      useStore.getState().bumpChecksRevision();
     });
 
     socket.io.on('reconnect_error', (err) => {

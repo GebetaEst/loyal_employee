@@ -248,7 +248,7 @@ export default function OrdersPage() {
       displayTables.push({
         id: tid,
         _id: tid,
-        name: typeof ot === 'string' ? `Table ${ot}` : (ot.name || `Table ${ot.code || tid}`),
+        name: typeof ot === 'string' ? (/^table\b/i.test(ot) ? ot : `Table ${ot}`) : (ot.name || (ot.code ? `Table ${ot.code}` : 'Table')),
         code: typeof ot === 'string' ? ot : ot.code,
         description: typeof ot === 'string' ? 'Active service table' : (ot.description || 'Active assigned table')
       });

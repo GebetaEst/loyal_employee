@@ -93,6 +93,8 @@ export const useStore = create((set, get) => ({
   socketConnected: false,
   ordersRevision: 0,
   lastRealtimeAt: null,
+  checksRevision: 0,
+  lastChecksRealtimeAt: null,
 
   // ─── Orders State ───
   activeOrders: [],
@@ -113,11 +115,19 @@ export const useStore = create((set, get) => ({
       lastRealtimeAt: Date.now(),
     })),
 
+  bumpChecksRevision: () =>
+    set((state) => ({
+      checksRevision: state.checksRevision + 1,
+      lastChecksRealtimeAt: Date.now(),
+    })),
+
   resetRealtime: () =>
     set({
       socketConnected: false,
       ordersRevision: 0,
       lastRealtimeAt: null,
+      checksRevision: 0,
+      lastChecksRealtimeAt: null,
     }),
 
   setActiveOrders: (activeOrders) =>
@@ -224,7 +234,6 @@ export const useStore = create((set, get) => ({
               ? {
                   ...o,
                   ...order,
-                  payment: order.payment || o.payment,
                 }
               : o
           ),
@@ -253,7 +262,6 @@ export const useStore = create((set, get) => ({
         if (!baseOrder) return state;
         const merged = {
           ...baseOrder,
-          payment: updates.payment || fullOrder?.payment || baseOrder.payment,
           currentStepKey: currentStepKey || baseOrder.currentStepKey,
           systemState: systemState || baseOrder.systemState,
           updatedAt: updates.updatedAt || new Date().toISOString(),
@@ -275,7 +283,6 @@ export const useStore = create((set, get) => ({
       const merged = {
         ...(existing || {}),
         ...(fullOrder || {}),
-        payment: updates.payment || fullOrder?.payment || existing?.payment,
         currentStepKey: currentStepKey || existing?.currentStepKey,
         systemState: systemState || existing?.systemState,
         updatedAt: updates.updatedAt || new Date().toISOString(),
@@ -377,6 +384,8 @@ export const useStore = create((set, get) => ({
       socketConnected: false,
       ordersRevision: 0,
       lastRealtimeAt: null,
+      checksRevision: 0,
+      lastChecksRealtimeAt: null,
       activeOrders: [],
       historyOrders: [],
       ordersLoading: true,
@@ -407,6 +416,8 @@ export const useStore = create((set, get) => ({
       socketConnected: false,
       ordersRevision: 0,
       lastRealtimeAt: null,
+      checksRevision: 0,
+      lastChecksRealtimeAt: null,
       activeOrders: [],
       historyOrders: [],
       ordersLoading: true,

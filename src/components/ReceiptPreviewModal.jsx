@@ -1,8 +1,17 @@
 import { useState, useEffect, useCallback } from 'react';
 import { createPortal } from 'react-dom';
 
-export default function ReceiptPreviewModal({ url, orderNumber, onClose }) {
+export default function ReceiptPreviewModal({
+  url,
+  title = 'Payment Proof',
+  subtitle,
+  details,
+  orderNumber,
+  onClose,
+}) {
   const [isClosing, setIsClosing] = useState(false);
+
+  const displaySubtitle = subtitle || (orderNumber ? `Order #${orderNumber}` : '');
 
   const handleClose = useCallback(() => {
     if (isClosing) return;
@@ -37,12 +46,19 @@ export default function ReceiptPreviewModal({ url, orderNumber, onClose }) {
         {/* Header */}
         <div className="flex items-center justify-between px-4 py-3 sm:px-5 sm:py-3.5 border-b border-slate-100 bg-slate-50">
           <div>
-            <h3 className="text-sm font-black text-slate-900">Payment Receipt Proof</h3>
-            <p className="text-xs text-slate-500">Order #{orderNumber}</p>
+            <h3 className="text-sm font-black text-slate-900">{title}</h3>
+            {displaySubtitle && (
+              <p className="text-xs text-slate-600 font-semibold">{displaySubtitle}</p>
+            )}
+            {details && (
+              <p className="text-[11px] text-slate-400 mt-0.5">{details}</p>
+            )}
           </div>
           <button
+            type="button"
             onClick={handleClose}
             className="w-7 h-7 sm:w-8 sm:h-8 rounded-full bg-slate-200/80 hover:bg-slate-300 text-slate-600 flex items-center justify-center transition-colors cursor-pointer text-xs sm:text-sm font-bold"
+            aria-label="Close"
           >
             ✕
           </button>
@@ -52,7 +68,7 @@ export default function ReceiptPreviewModal({ url, orderNumber, onClose }) {
         <div className="p-3 sm:p-4 bg-slate-100 flex items-center justify-center max-h-[70vh] overflow-auto">
           <img
             src={url}
-            alt={`Receipt proof for order ${orderNumber}`}
+            alt={displaySubtitle || 'Payment receipt proof'}
             className="max-h-[60vh] max-w-full rounded-2xl object-contain shadow-md border border-slate-200"
           />
         </div>
@@ -71,6 +87,7 @@ export default function ReceiptPreviewModal({ url, orderNumber, onClose }) {
             Open Original Image
           </a>
           <button
+            type="button"
             onClick={handleClose}
             className="px-4 py-2 rounded-xl text-xs font-bold bg-slate-100 hover:bg-slate-200 text-slate-700 transition-colors cursor-pointer"
           >
